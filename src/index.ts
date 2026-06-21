@@ -4,8 +4,13 @@ import { loadSpec } from "./spec";
 import { registerTools } from "./tools";
 
 async function main() {
-  if (!process.env.SURF_API_KEY) {
-    console.error("[surf-mcp] SURF_API_KEY environment variable is required");
+  const apiKey = (process.env.SURF_API_KEY ?? "").trim();
+  if (!apiKey) {
+    console.error(
+      "[surf-mcp] SURF_API_KEY environment variable is required but is missing or empty." +
+      " Set it to your Surf API key before starting the MCP server." +
+      " See https://surf.surf/docs for how to obtain a key."
+    );
     process.exit(1);
   }
 
