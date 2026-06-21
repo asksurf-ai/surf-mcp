@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, statSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
 
@@ -59,7 +59,11 @@ export async function loadSpec(): Promise<OpenAPISpec> {
   try {
     const spec = await fetchSpec();
     mkdirSync(CACHE_DIR, { recursive: true });
-    writeFileSync(CACHE_PATH, JSON.stringify(spec));
+    // Write atomically: write to a temp file first, then rename into place.
+    // This prevents a corrupt cache if the process crashes mid-write.
+    const tmpPath = CACHE_PATH + ".tmp";
+    writeFileSync(tmpPath, JSON.stringify(spec));
+    renameSync(tmpPath, CACHE_PATH);
     return spec;
   } catch (err) {
     if (existsSync(CACHE_PATH)) {
