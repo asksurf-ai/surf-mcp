@@ -312,7 +312,15 @@ export function registerTools(server: McpServer, spec: OpenAPISpec): void {
     );
   }
 
-  console.error(
-    `[surf-mcp] Registered ${groups.length} tools: ${groups.map((g) => g.toolName).join(", ")}`
-  );
+  const message =
+    `[surf-mcp] Registered ${groups.length} tools: ${groups.map((g) => g.toolName).join(", ")}`;
+
+  // stdout is reserved for the MCP protocol in stdio mode. Hosted HTTP
+  // runtimes can use stdout so routine startup messages are not reported as
+  // production errors.
+  if (process.env.VERCEL || process.env.SURF_MCP_TRANSPORT === "http") {
+    console.info(message);
+  } else {
+    console.error(message);
+  }
 }
