@@ -6,8 +6,8 @@ Surf uses one public plugin listing shared by ChatGPT and Codex. The listing is 
 
 The anonymous beta is deployed at:
 
-- MCP: `https://surf-mcp.vercel.app/mcp`
-- Health: `https://surf-mcp.vercel.app/healthz`
+- MCP: `https://mcp.asksurf.ai/mcp`
+- Health: `https://mcp.asksurf.ai/healthz`
 
 The endpoint has been verified with MCP protocol initialization, a 15-tool scan, and a live anonymous BTC price call. For production capacity, store a dedicated, rate-limited `SURF_API_KEY` in the deployment secret manager or add MCP-compliant OAuth 2.1.
 
@@ -41,7 +41,7 @@ Required before submission:
 When prompted for domain verification, serve the exact OpenAI token as plain text at:
 
 ```text
-https://<verified-host>/.well-known/openai-apps-challenge
+https://mcp.asksurf.ai/.well-known/openai-apps-challenge
 ```
 
 ## 4. Suggested listing copy

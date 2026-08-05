@@ -1,6 +1,6 @@
 {
   "surf": {
     "type": "http",
-    "url": "https://surf-mcp.vercel.app/mcp"
+    "url": "https://mcp.asksurf.ai/mcp"
   }
 }

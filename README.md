@@ -11,7 +11,7 @@ Add to your MCP client config — no clone or install needed:
   "mcpServers": {
     "surf": {
       "type": "http",
-      "url": "https://surf-mcp.vercel.app/mcp"
+      "url": "https://mcp.asksurf.ai/mcp"
     }
   }
 }
@@ -63,7 +63,7 @@ The repository contains a Codex/ChatGPT plugin package under [`plugins/surf`](pl
 codex plugin marketplace add asksurf-ai/surf-mcp
 ```
 
-Register `https://surf-mcp.vercel.app/mcp` in [ChatGPT Plugins](https://chatgpt.com/plugins). See [`docs/chatgpt-plugin-submission.md`](docs/chatgpt-plugin-submission.md) for the submission checklist.
+Register `https://mcp.asksurf.ai/mcp` in [ChatGPT Plugins](https://chatgpt.com/plugins). See [`docs/chatgpt-plugin-submission.md`](docs/chatgpt-plugin-submission.md) for the submission checklist.
 
 ## Streamable HTTP deployment
 
@@ -85,7 +85,7 @@ docker build -t surf-mcp .
 docker run --rm -p 3000:3000 -e SURF_API_KEY=your-service-api-key surf-mcp
 ```
 
-The limited beta is live at `https://surf-mcp.vercel.app/mcp`. For higher capacity, keep a dedicated, rate-limited `SURF_API_KEY` in the host's secret manager; never put it in plugin manifests or client-visible responses.
+The limited beta is live at `https://mcp.asksurf.ai/mcp`. For higher capacity, keep a dedicated, rate-limited `SURF_API_KEY` in the host's secret manager; never put it in plugin manifests or client-visible responses.
 
 The included Vercel Functions adapter exposes the same endpoints from `api/mcp.ts` and `api/healthz.ts`. Deploy it to a Vercel project when a serverless beta is preferable to the container image.
 
