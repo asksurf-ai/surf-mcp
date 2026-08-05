@@ -44,6 +44,10 @@ When prompted for domain verification, serve the exact OpenAI token as plain tex
 https://mcp.asksurf.ai/.well-known/openai-apps-challenge
 ```
 
+The included Vercel function serves this route from the
+`OPENAI_APPS_CHALLENGE` environment variable. Add the exact portal token to the
+production environment and redeploy; do not wrap it in JSON or add other text.
+
 ## 4. Suggested listing copy
 
 - **Name:** Surf

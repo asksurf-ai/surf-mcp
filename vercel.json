@@ -11,6 +11,10 @@
     {
       "src": "api/healthz.ts",
       "use": "@vercel/node"
+    },
+    {
+      "src": "api/openai-apps-challenge.ts",
+      "use": "@vercel/node"
     }
   ],
   "routes": [
@@ -29,6 +33,10 @@
     {
       "src": "/api/healthz",
       "dest": "/api/healthz.ts"
+    },
+    {
+      "src": "/.well-known/openai-apps-challenge",
+      "dest": "/api/openai-apps-challenge.ts"
     }
   ]
 }
