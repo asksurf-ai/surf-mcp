@@ -1,0 +1,41 @@
+{
+  "name": "surf",
+  "version": "0.2.0+codex.20260805064148",
+  "description": "Live crypto market, on-chain, wallet, social, news, and prediction-market data from Surf.",
+  "author": {
+    "name": "Surf",
+    "email": "hello@asksurf.ai",
+    "url": "https://ask.surf"
+  },
+  "homepage": "https://docs.asksurf.ai/docs/cli/mcp",
+  "repository": "https://github.com/asksurf-ai/surf-mcp",
+  "license": "MIT",
+  "keywords": [
+    "crypto",
+    "market-data",
+    "on-chain",
+    "wallets",
+    "news",
+    "prediction-markets"
+  ],
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Surf",
+    "shortDescription": "Live crypto and on-chain intelligence",
+    "longDescription": "Research crypto markets with live prices, exchange data, wallet and token activity, social signals, DeFi metrics, news, on-chain SQL, and prediction markets through Surf's MCP data tools.",
+    "developerName": "Surf",
+    "category": "Productivity",
+    "capabilities": [
+      "Read"
+    ],
+    "websiteURL": "https://ask.surf",
+    "defaultPrompt": [
+      "What is moving the crypto market today?",
+      "Analyze this wallet's positions and recent activity.",
+      "Compare BTC and ETH market, social, and on-chain signals."
+    ],
+    "brandColor": "#111214",
+    "composerIcon": "./assets/surf.svg",
+    "logo": "./assets/surf.svg"
+  }
+}

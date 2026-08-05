@@ -1,9 +1,11 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync } from "fs";
 import { join } from "path";
-import { homedir } from "os";
+import { homedir, tmpdir } from "os";
 
 const SPEC_URL = "https://api.asksurf.ai/gateway/openapi.json";
-const CACHE_DIR = join(homedir(), ".cache", "surf-mcp");
+const CACHE_DIR =
+  process.env.SURF_MCP_CACHE_DIR ??
+  (process.env.VERCEL ? join(tmpdir(), "surf-mcp") : join(homedir(), ".cache", "surf-mcp"));
 const CACHE_PATH = join(CACHE_DIR, "openapi.json");
 const TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
@@ -58,8 +60,12 @@ export async function loadSpec(): Promise<OpenAPISpec> {
 
   try {
     const spec = await fetchSpec();
-    mkdirSync(CACHE_DIR, { recursive: true });
-    writeFileSync(CACHE_PATH, JSON.stringify(spec));
+    try {
+      mkdirSync(CACHE_DIR, { recursive: true });
+      writeFileSync(CACHE_PATH, JSON.stringify(spec));
+    } catch (cacheErr) {
+      console.error(`[surf-mcp] Could not write spec cache: ${(cacheErr as Error).message}`);
+    }
     return spec;
   } catch (err) {
     if (existsSync(CACHE_PATH)) {

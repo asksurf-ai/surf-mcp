@@ -1,10 +1,23 @@
 # surf-mcp
 
-MCP server for the [Surf](https://ask.surf) crypto data API. Dynamically generates tools from the OpenAPI spec — 12 grouped tools covering 86 endpoints across market data, wallets, social, on-chain queries, and more.
+MCP server for the [Surf](https://ask.surf) crypto data API. Dynamically generates tools from the OpenAPI spec across market data, wallets, social, on-chain queries, and more. It supports stdio for local clients and Streamable HTTP for hosted ChatGPT/Codex integrations.
 
 ## Quick start
 
 Add to your MCP client config — no clone or install needed:
+
+```json
+{
+  "mcpServers": {
+    "surf": {
+      "type": "http",
+      "url": "https://surf-mcp.vercel.app/mcp"
+    }
+  }
+}
+```
+
+To run the stdio package locally instead:
 
 ```json
 {
@@ -20,26 +33,10 @@ Add to your MCP client config — no clone or install needed:
 }
 ```
 
-Or with [Bun](https://bun.sh):
-
-```json
-{
-  "mcpServers": {
-    "surf": {
-      "command": "bunx",
-      "args": ["@surf-ai/surf-mcp"],
-      "env": {
-        "SURF_API_KEY": "your-api-key"
-      }
-    }
-  }
-}
-```
-
 ### Prerequisites
 
-- A Surf API key ([get one here](https://ask.surf))
 - Node.js 20+ or [Bun](https://bun.sh)
+- Optional: a Surf API key ([get one here](https://ask.surf)) for account credits and higher limits. Without a key, Surf's anonymous per-IP allowance applies.
 
 ### Config file locations
 
@@ -47,18 +44,66 @@ Or with [Bun](https://bun.sh):
 - **Claude Desktop**: `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
 - **Cursor**: MCP settings in the IDE
 
+## Claude Code plugin
+
+This repository is also a Claude Code marketplace. Install the Surf plugin with:
+
+```bash
+claude plugin marketplace add asksurf-ai/surf-mcp
+claude plugin install surf@surf
+```
+
+The plugin connects to the hosted anonymous beta. Usage is limited by Surf's anonymous allowance; production deployments should use a dedicated, rate-limited service key or OAuth 2.1.
+
+## ChatGPT and Codex plugin
+
+The repository contains a Codex/ChatGPT plugin package under [`plugins/surf`](plugins/surf), a Claude package under [`claude-plugin`](claude-plugin), and repo marketplaces for both hosts. The two thin package directories are separate because the current hosts validate different `.mcp.json` root shapes; both connect to the hosted MCP endpoint. Codex can add its marketplace directly:
+
+```bash
+codex plugin marketplace add asksurf-ai/surf-mcp
+```
+
+Register `https://surf-mcp.vercel.app/mcp` in [ChatGPT Plugins](https://chatgpt.com/plugins). See [`docs/chatgpt-plugin-submission.md`](docs/chatgpt-plugin-submission.md) for the submission checklist.
+
+## Streamable HTTP deployment
+
+Run the hosted transport locally:
+
+```bash
+bun run start:http
+```
+
+The server exposes:
+
+- `POST /mcp` — stateless MCP Streamable HTTP endpoint
+- `GET /healthz` — deployment health check
+
+Build and run the included container:
+
+```bash
+docker build -t surf-mcp .
+docker run --rm -p 3000:3000 -e SURF_API_KEY=your-service-api-key surf-mcp
+```
+
+The limited beta is live at `https://surf-mcp.vercel.app/mcp`. For higher capacity, keep a dedicated, rate-limited `SURF_API_KEY` in the host's secret manager; never put it in plugin manifests or client-visible responses.
+
+The included Vercel Functions adapter exposes the same endpoints from `api/mcp.ts` and `api/healthz.ts`. Deploy it to a Vercel project when a serverless beta is preferable to the container image.
+
 ## Tools
 
-The server exposes 12 tools, one per API domain. Each tool accepts a `command` and optional `params`:
+The server currently exposes 15 tools, one per API domain. Each tool accepts a `command` and optional `params`; the exact commands update automatically with the Surf OpenAPI specification:
 
 | Tool | Commands | Description |
 |------|----------|-------------|
+| `surf_dex` | `token-price` | DEX-pool-weighted token OHLCV data |
 | `surf_market` | `price`, `ranking`, `etf`, `futures`, `options`, `fear-greed`, `liquidation-*`, `onchain-indicator`, `price-indicator` | Market overview, rankings, indicators, ETF flows |
 | `surf_exchange` | `depth`, `klines`, `funding-history`, `perp`, `price`, `markets`, `long-short-ratio` | Live exchange data from Binance, OKX, Bybit, etc. |
+| `surf_hyperliquid` | `leaderboard`, `positions`, `orders`, `fills`, `trades`, `performance` | Hyperliquid trader, position, order, fill, and P&L data |
 | `surf_wallet` | `detail`, `transfers`, `history`, `net-worth`, `protocols`, `labels-batch` | Wallet balances, transfers, DeFi positions |
 | `surf_token` | `holders`, `dex-trades`, `transfers`, `tokenomics` | Token holder analysis, DEX trades, unlocks |
-| `surf_social` | `detail`, `user`, `user-posts`, `tweets`, `mindshare`, `ranking`, `smart-followers-history`, `tweet-replies`, `user-followers`, `user-following`, `user-replies` | X (Twitter) social signals and sentiment |
+| `surf_x` | `tweets` | X post and author details by post ID |
 | `surf_project` | `detail`, `defi-metrics`, `defi-ranking` | Project profiles, DeFi TVL/fees/revenue |
+| `surf_signal` | `detail`, `projects`, `token-of-the-day`, `token-of-week` | Project signal scores and ranked highlights |
 | `surf_onchain` | `sql`, `tx`, `gas-price`, `schema`, `bridge-ranking`, `yield-ranking`, `structured-query` | On-chain SQL queries, tx lookup, gas prices |
 | `surf_search` | `project`, `wallet`, `news`, `web`, `fund`, `polymarket`, `kalshi`, `airdrop`, `events`, `social-people`, `social-posts` | Unified search across all data types |
 | `surf_prediction_market` | `kalshi-*`, `polymarket-*`, `matching-*`, `category-metrics` | Polymarket and Kalshi prediction markets |
@@ -75,7 +120,7 @@ Once configured, your AI assistant can use the tools directly:
 "Check vitalik's wallet"       → surf_wallet({ command: "detail", params: { address: "vitalik.eth" } })
 "Search for DeFi projects"     → surf_search({ command: "project", params: { q: "defi lending" } })
 "Run an on-chain SQL query"    → surf_onchain({ command: "sql", params: { sql: "SELECT ..." } })
-"ETH social sentiment"         → surf_social({ command: "detail", params: { q: "ethereum" } })
+"Surf's token of the day"      → surf_signal({ command: "token-of-the-day" })
 ```
 
 ## How it works
@@ -85,7 +130,7 @@ On startup, the server:
 1. Fetches the OpenAPI spec from `https://api.asksurf.ai/gateway/openapi.json` (cached for 24h)
 2. Groups all operations by their API tag
 3. Registers one MCP tool per tag with auto-generated descriptions and command enums
-4. Routes tool calls through `@surf-ai/sdk` for HTTP transport and auth
+4. Routes tool calls to the Surf API with native HTTP fetch and optional bearer authentication
 
 The server automatically picks up new API endpoints when the spec is updated — just restart.
 
@@ -104,6 +149,7 @@ git clone https://github.com/asksurf-ai/surf-mcp.git
 cd surf-mcp
 bun install
 bun run start                # Run the server
+bun run start:http           # Run Streamable HTTP on :3000
 bun run typecheck            # Type check
 ```
 

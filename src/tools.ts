@@ -1,7 +1,9 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { dataApi } from "@surf-ai/sdk/server";
-import type { OpenAPISpec, OpenAPIOperation, OpenAPIParameter } from "./spec";
+import type { OpenAPISpec, OpenAPIOperation, OpenAPIParameter } from "./spec.js";
+
+const DATA_API_BASE_URL =
+  process.env.SURF_API_BASE_URL ?? "https://api.asksurf.ai/gateway/v1";
 
 interface ParamInfo {
   name: string;
@@ -85,7 +87,12 @@ function extractParams(parameters: OpenAPIParameter[]): ParamInfo[] {
 }
 
 function buildDescription(group: TagGroup): string {
-  const lines: string[] = [group.description, "", "Commands:"];
+  const lines: string[] = [
+    `Use this when the user needs ${group.name.toLowerCase()} data from Surf.`,
+    group.description,
+    "",
+    "Commands:",
+  ];
 
   for (const op of group.operations) {
     lines.push(`  ${op.command} - ${op.summary}`);
@@ -103,6 +110,13 @@ function buildDescription(group: TagGroup): string {
   }
 
   return lines.join("\n");
+}
+
+function isReadOnlyGroup(group: TagGroup): boolean {
+  // Submitting an async SQL job creates server-side state. OpenAI's plugin
+  // review guidance requires any tool that can enqueue a job to be marked as
+  // non-read-only, even when the job itself only computes a query result.
+  return !group.operations.some((operation) => operation.command === "sql-job-create");
 }
 
 function parseSpec(spec: OpenAPISpec): TagGroup[] {
@@ -169,6 +183,70 @@ function resolvePath(
   return { path, remainingParams: remaining };
 }
 
+function appendQueryParam(url: URL, name: string, value: unknown): void {
+  if (value === undefined || value === null) return;
+
+  if (Array.isArray(value)) {
+    for (const item of value) appendQueryParam(url, name, item);
+    return;
+  }
+
+  url.searchParams.append(
+    name,
+    typeof value === "object" ? JSON.stringify(value) : String(value)
+  );
+}
+
+async function callDataApi(
+  method: string,
+  path: string,
+  params: Record<string, unknown>
+): Promise<unknown> {
+  const baseUrl = DATA_API_BASE_URL.endsWith("/")
+    ? DATA_API_BASE_URL
+    : `${DATA_API_BASE_URL}/`;
+  const url = new URL(path.replace(/^\//, ""), baseUrl);
+  const headers: Record<string, string> = { accept: "application/json" };
+  const apiKey = process.env.SURF_API_KEY;
+
+  if (apiKey) headers.authorization = `Bearer ${apiKey}`;
+
+  const init: RequestInit = { method, headers };
+  if (method === "POST") {
+    headers["content-type"] = "application/json";
+    init.body = JSON.stringify(params);
+  } else {
+    for (const [name, value] of Object.entries(params)) {
+      appendQueryParam(url, name, value);
+    }
+  }
+
+  const response = await fetch(url, init);
+  const raw = await response.text();
+  let result: unknown = raw;
+
+  try {
+    result = JSON.parse(raw);
+  } catch {
+    // Preserve non-JSON upstream responses for a useful error message.
+  }
+
+  if (!response.ok) {
+    const apiMessage =
+      typeof result === "object" &&
+      result !== null &&
+      "error" in result &&
+      typeof result.error === "object" &&
+      result.error !== null &&
+      "message" in result.error
+        ? String(result.error.message)
+        : raw;
+    throw new Error(`Surf API ${response.status}: ${apiMessage}`);
+  }
+
+  return result;
+}
+
 export function registerTools(server: McpServer, spec: OpenAPISpec): void {
   const groups = parseSpec(spec);
 
@@ -176,12 +254,20 @@ export function registerTools(server: McpServer, spec: OpenAPISpec): void {
     const commandNames = group.operations.map((o) => o.command);
     const description = buildDescription(group);
 
-    server.tool(
+    server.registerTool(
       group.toolName,
-      description,
       {
-        command: z.enum(commandNames as [string, ...string[]]),
-        params: z.record(z.string(), z.any()).optional(),
+        title: `Surf ${group.name}`,
+        description,
+        inputSchema: {
+          command: z.enum(commandNames as [string, ...string[]]),
+          params: z.record(z.string(), z.any()).optional(),
+        },
+        annotations: {
+          readOnlyHint: isReadOnlyGroup(group),
+          openWorldHint: false,
+          destructiveHint: false,
+        },
       },
       async ({ command, params }) => {
         const op = group.operations.find((o) => o.command === command);
@@ -203,12 +289,13 @@ export function registerTools(server: McpServer, spec: OpenAPISpec): void {
             ? resolvePath(op.path, inputParams)
             : { path: op.path, remainingParams: inputParams };
 
-          const result =
-            op.method === "POST"
-              ? await dataApi.post(path, remainingParams)
-              : await dataApi.get(path, remainingParams as Record<string, any>);
+          const result = await callDataApi(op.method, path, remainingParams);
 
           return {
+            structuredContent:
+              result !== null && typeof result === "object" && !Array.isArray(result)
+                ? (result as Record<string, unknown>)
+                : { data: result },
             content: [
               { type: "text" as const, text: JSON.stringify(result, null, 2) },
             ],

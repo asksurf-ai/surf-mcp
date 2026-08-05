@@ -1,6 +1,6 @@
 {
   "name": "@surf-ai/surf-mcp",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "type": "module",
   "description": "MCP server for Surf crypto data API",
   "bin": {
@@ -11,6 +11,7 @@
   ],
   "scripts": {
     "start": "bun run src/index.ts",
+    "start:http": "SURF_MCP_TRANSPORT=http bun run src/index.ts",
     "build": "tsup",
     "typecheck": "tsc --noEmit"
   },
@@ -24,7 +25,6 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "@surf-ai/sdk": "1.0.0-alpha.13",
     "zod": "^4.3.6"
   },
   "repository": {

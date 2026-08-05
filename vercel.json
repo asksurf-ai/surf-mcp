@@ -1,0 +1,34 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/mcp.ts",
+      "use": "@vercel/node",
+      "config": {
+        "maxDuration": 60
+      }
+    },
+    {
+      "src": "api/healthz.ts",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/mcp",
+      "dest": "/api/mcp.ts"
+    },
+    {
+      "src": "/healthz",
+      "dest": "/api/healthz.ts"
+    },
+    {
+      "src": "/api/mcp",
+      "dest": "/api/mcp.ts"
+    },
+    {
+      "src": "/api/healthz",
+      "dest": "/api/healthz.ts"
+    }
+  ]
+}

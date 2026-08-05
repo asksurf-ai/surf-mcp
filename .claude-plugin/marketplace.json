@@ -1,0 +1,26 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "surf",
+  "version": "0.2.0",
+  "description": "Surf plugins for live crypto and on-chain intelligence.",
+  "owner": {
+    "name": "Surf",
+    "email": "hello@asksurf.ai",
+    "url": "https://ask.surf"
+  },
+  "plugins": [
+    {
+      "name": "surf",
+      "description": "Live crypto market, on-chain, wallet, social, news, and prediction-market data from Surf.",
+      "version": "0.2.0",
+      "author": {
+        "name": "Surf",
+        "email": "hello@asksurf.ai",
+        "url": "https://ask.surf"
+      },
+      "source": "./claude-plugin",
+      "category": "productivity",
+      "homepage": "https://docs.asksurf.ai/docs/cli/mcp"
+    }
+  ]
+}
