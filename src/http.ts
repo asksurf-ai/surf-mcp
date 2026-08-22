@@ -15,7 +15,11 @@ export async function handleMcpHttpRequest(
   res: ServerResponse
 ): Promise<void> {
   const spec = await getSpec();
-  const server = createSurfServer(spec);
+  // Forward the caller's own credentials so usage and billing attach to the
+  // caller's Surf account; resolveAuthorization falls back to the service key.
+  const server = createSurfServer(spec, {
+    authorization: req.headers.authorization,
+  });
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
     enableJsonResponse: true,

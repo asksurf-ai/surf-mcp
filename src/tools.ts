@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { resolveAuthorization, type RequestAuth } from "./auth.js";
 import type { OpenAPISpec, OpenAPIOperation, OpenAPIParameter } from "./spec.js";
 
 const DATA_API_BASE_URL =
@@ -197,19 +198,20 @@ function appendQueryParam(url: URL, name: string, value: unknown): void {
   );
 }
 
-async function callDataApi(
+export async function callDataApi(
   method: string,
   path: string,
-  params: Record<string, unknown>
+  params: Record<string, unknown>,
+  auth?: RequestAuth
 ): Promise<unknown> {
   const baseUrl = DATA_API_BASE_URL.endsWith("/")
     ? DATA_API_BASE_URL
     : `${DATA_API_BASE_URL}/`;
   const url = new URL(path.replace(/^\//, ""), baseUrl);
   const headers: Record<string, string> = { accept: "application/json" };
-  const apiKey = process.env.SURF_API_KEY;
+  const authorization = resolveAuthorization(auth?.authorization);
 
-  if (apiKey) headers.authorization = `Bearer ${apiKey}`;
+  if (authorization) headers.authorization = authorization;
 
   const init: RequestInit = { method, headers };
   if (method === "POST") {
@@ -247,7 +249,11 @@ async function callDataApi(
   return result;
 }
 
-export function registerTools(server: McpServer, spec: OpenAPISpec): void {
+export function registerTools(
+  server: McpServer,
+  spec: OpenAPISpec,
+  auth?: RequestAuth
+): void {
   const groups = parseSpec(spec);
 
   for (const group of groups) {
@@ -289,7 +295,7 @@ export function registerTools(server: McpServer, spec: OpenAPISpec): void {
             ? resolvePath(op.path, inputParams)
             : { path: op.path, remainingParams: inputParams };
 
-          const result = await callDataApi(op.method, path, remainingParams);
+          const result = await callDataApi(op.method, path, remainingParams, auth);
 
           return {
             structuredContent:

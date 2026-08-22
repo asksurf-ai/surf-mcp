@@ -15,6 +15,10 @@
     {
       "src": "api/openai-apps-challenge.ts",
       "use": "@vercel/node"
+    },
+    {
+      "src": "api/oauth-protected-resource.ts",
+      "use": "@vercel/node"
     }
   ],
   "routes": [
@@ -37,6 +41,10 @@
     {
       "src": "/.well-known/openai-apps-challenge",
       "dest": "/api/openai-apps-challenge.ts"
+    },
+    {
+      "src": "/.well-known/oauth-protected-resource",
+      "dest": "/api/oauth-protected-resource.ts"
     }
   ]
 }
