@@ -3,6 +3,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { handleMcpHttpRequest } from "./http.js";
 import { createSurfServer, SERVER_VERSION } from "./server.js";
 import { loadSpec } from "./spec.js";
+import { handleProtectedResourceRequest } from "./wellknown.js";
 
 async function startStdio(): Promise<void> {
   const spec = await loadSpec();
@@ -28,6 +29,14 @@ async function startHttp(): Promise<void> {
     if (req.method === "GET" && url.pathname === "/healthz") {
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify({ status: "ok", service: "surf-mcp", version: SERVER_VERSION }));
+      return;
+    }
+
+    if (
+      req.method === "GET" &&
+      url.pathname === "/.well-known/oauth-protected-resource"
+    ) {
+      handleProtectedResourceRequest(req, res);
       return;
     }
 

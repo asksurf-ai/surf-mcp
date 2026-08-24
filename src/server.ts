@@ -1,10 +1,11 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { RequestAuth } from "./auth.js";
 import type { OpenAPISpec } from "./spec.js";
 import { registerTools } from "./tools.js";
 
 export const SERVER_VERSION = "0.2.0";
 
-export function createSurfServer(spec: OpenAPISpec): McpServer {
+export function createSurfServer(spec: OpenAPISpec, auth?: RequestAuth): McpServer {
   const server = new McpServer(
     {
       name: "surf-mcp",
@@ -16,6 +17,6 @@ export function createSurfServer(spec: OpenAPISpec): McpServer {
     }
   );
 
-  registerTools(server, spec);
+  registerTools(server, spec, auth);
   return server;
 }

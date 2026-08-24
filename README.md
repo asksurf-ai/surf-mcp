@@ -77,6 +77,22 @@ The server exposes:
 
 - `POST /mcp` — stateless MCP Streamable HTTP endpoint
 - `GET /healthz` — deployment health check
+- `GET /.well-known/oauth-protected-resource` — OAuth resource metadata (RFC 9728); returns 404 until `SURF_OAUTH_AUTHORIZATION_SERVER` is configured
+
+### Authentication
+
+Each HTTP request's `Authorization` header is forwarded verbatim to the Surf data API, so callers presenting their own Surf API key (or a Surf-issued OAuth token, once available) are billed and rate-limited on their own account. Resolution order per request:
+
+1. The incoming `Authorization` header, forwarded as-is
+2. The deployment's `SURF_API_KEY` service key (`Bearer` scheme)
+3. Anonymous — the Surf API's per-IP allowance applies
+
+Environment variables for the OAuth discovery endpoint:
+
+| Variable | Purpose |
+|----------|---------|
+| `SURF_OAUTH_AUTHORIZATION_SERVER` | Base URL of the Surf OAuth authorization server. Unset (default) keeps the metadata endpoint dark. |
+| `SURF_MCP_RESOURCE_URL` | Public URL of this MCP deployment (default `https://mcp.asksurf.ai`). |
 
 Build and run the included container:
 

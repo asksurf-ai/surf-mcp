@@ -13,6 +13,7 @@
     "start": "bun run src/index.ts",
     "start:http": "SURF_MCP_TRANSPORT=http bun run src/index.ts",
     "build": "tsup",
+    "test": "bun test",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
