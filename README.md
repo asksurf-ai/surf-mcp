@@ -87,12 +87,21 @@ Each HTTP request's `Authorization` header is forwarded verbatim to the Surf dat
 2. The deployment's `SURF_API_KEY` service key (`Bearer` scheme)
 3. Anonymous — the Surf API's per-IP allowance applies
 
-Environment variables for the OAuth discovery endpoint:
+Environment variables for OAuth discovery and login:
 
 | Variable | Purpose |
 |----------|---------|
 | `SURF_OAUTH_AUTHORIZATION_SERVER` | Base URL of the Surf OAuth authorization server. Unset (default) keeps the metadata endpoint dark. |
 | `SURF_MCP_RESOURCE_URL` | Public URL of this MCP deployment (default `https://mcp.asksurf.ai`). |
+| `SURF_MCP_REQUIRE_AUTH` | `1`/`true` makes `/mcp` answer credential-less requests with `401` + `WWW-Authenticate`, which is what makes MCP clients open the OAuth login in the user's browser. Requires the discovery endpoint to be live. |
+
+Deployment modes:
+
+| `SURF_OAUTH_AUTHORIZATION_SERVER` | `SURF_MCP_REQUIRE_AUTH` | Behavior |
+|---|---|---|
+| unset | unset | Anonymous allowance + API key passthrough (current beta) |
+| set | unset | OAuth discoverable for clients that look for it; anonymous still allowed |
+| set | set | Credential-less requests are challenged into the OAuth login flow |
 
 Build and run the included container:
 

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { resolveAuthorization } from "./auth.js";
+import { buildAuthChallenge, resolveAuthorization } from "./auth.js";
 import { buildProtectedResourceMetadata } from "./wellknown.js";
 
 const ORIGINAL_ENV = { ...process.env };
@@ -58,5 +58,31 @@ describe("buildProtectedResourceMetadata", () => {
     expect(buildProtectedResourceMetadata()?.resource).toBe(
       "https://mcp.asksurf.ai"
     );
+  });
+});
+
+describe("buildAuthChallenge", () => {
+  test("no challenge when auth is not required", () => {
+    delete process.env.SURF_MCP_REQUIRE_AUTH;
+    expect(buildAuthChallenge(undefined)).toBeNull();
+  });
+
+  test("challenges credential-less requests when required", () => {
+    process.env.SURF_MCP_REQUIRE_AUTH = "1";
+    process.env.SURF_MCP_RESOURCE_URL = "https://mcp.example.com";
+    expect(buildAuthChallenge(undefined)).toBe(
+      'Bearer resource_metadata="https://mcp.example.com/.well-known/oauth-protected-resource"'
+    );
+  });
+
+  test("defaults the resource URL to the hosted endpoint", () => {
+    process.env.SURF_MCP_REQUIRE_AUTH = "true";
+    delete process.env.SURF_MCP_RESOURCE_URL;
+    expect(buildAuthChallenge("")).toContain("https://mcp.asksurf.ai/.well-known");
+  });
+
+  test("requests carrying credentials pass through unchallenged", () => {
+    process.env.SURF_MCP_REQUIRE_AUTH = "1";
+    expect(buildAuthChallenge("Bearer sk-surf-user")).toBeNull();
   });
 });
