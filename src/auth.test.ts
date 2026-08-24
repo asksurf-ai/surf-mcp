@@ -44,7 +44,7 @@ describe("buildProtectedResourceMetadata", () => {
 
     expect(buildProtectedResourceMetadata()).toEqual({
       resource: "https://mcp.example.com",
-      authorization_servers: ["https://api.ask.surf"],
+      authorization_servers: ["https://mcp.example.com"],
       bearer_methods_supported: ["header"],
       resource_name: "Surf MCP",
       resource_documentation: "https://github.com/asksurf-ai/surf-mcp",

@@ -3,7 +3,10 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { handleMcpHttpRequest } from "./http.js";
 import { createSurfServer, SERVER_VERSION } from "./server.js";
 import { loadSpec } from "./spec.js";
-import { handleProtectedResourceRequest } from "./wellknown.js";
+import {
+  handleAuthorizationServerMetadataProxy,
+  handleProtectedResourceRequest,
+} from "./wellknown.js";
 
 async function startStdio(): Promise<void> {
   const spec = await loadSpec();
@@ -37,6 +40,14 @@ async function startHttp(): Promise<void> {
       url.pathname === "/.well-known/oauth-protected-resource"
     ) {
       handleProtectedResourceRequest(req, res);
+      return;
+    }
+
+    if (
+      req.method === "GET" &&
+      url.pathname === "/.well-known/oauth-authorization-server"
+    ) {
+      await handleAuthorizationServerMetadataProxy(req, res);
       return;
     }
 
