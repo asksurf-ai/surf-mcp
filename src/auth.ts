@@ -19,3 +19,31 @@ export function resolveAuthorization(incoming?: string): string | undefined {
   const apiKey = process.env.SURF_API_KEY;
   return apiKey ? `Bearer ${apiKey}` : undefined;
 }
+
+function authRequired(): boolean {
+  const v = process.env.SURF_MCP_REQUIRE_AUTH?.trim().toLowerCase();
+  return v === "1" || v === "true" || v === "yes";
+}
+
+/**
+ * The login trigger for MCP clients: when the deployment requires auth and a
+ * request arrives without credentials, /mcp answers 401 with this
+ * WWW-Authenticate value. Compliant clients follow the referenced resource
+ * metadata to the authorization server and open the OAuth login in the
+ * user's browser, so subsequent calls bill the signed-in account.
+ *
+ * Returns the header value to challenge with, or null when the request may
+ * proceed (auth not required, or credentials present — the data API is the
+ * actual validator).
+ *
+ * Deployment modes:
+ * - neither env set (default): anonymous allowance + API key passthrough
+ * - SURF_OAUTH_AUTHORIZATION_SERVER only: OAuth discoverable, not enforced
+ * - both set: credential-less requests are challenged into the OAuth flow
+ */
+export function buildAuthChallenge(incoming?: string): string | null {
+  if (!authRequired()) return null;
+  if (incoming?.trim()) return null;
+  const resource = process.env.SURF_MCP_RESOURCE_URL ?? "https://mcp.asksurf.ai";
+  return `Bearer resource_metadata="${resource}/.well-known/oauth-protected-resource"`;
+}
