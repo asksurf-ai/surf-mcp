@@ -51,3 +51,35 @@ describe("callDataApi auth propagation", () => {
     expect(upstream.headers().authorization).toBeUndefined();
   });
 });
+
+describe("callDataApi error surfacing", () => {
+  function failWith(status: number, body: unknown) {
+    globalThis.fetch = (async (_url: unknown, _init?: RequestInit) =>
+      new Response(JSON.stringify(body), {
+        status,
+        headers: { "content-type": "application/json" },
+      })) as typeof fetch;
+  }
+
+  test("anonymous quota exhaustion reaches the caller as guidance", async () => {
+    delete process.env.SURF_API_KEY;
+    failWith(402, {
+      error: { code: "FREE_QUOTA_EXHAUSTED", message: "insufficient credit" },
+    });
+
+    await expect(
+      callDataApi("GET", "market/price", { symbol: "BTC" })
+    ).rejects.toThrow(/anonymous daily allowance[\s\S]*agents\.asksurf\.ai/);
+  });
+
+  test("zero balance on an authenticated call points at Billing", async () => {
+    process.env.SURF_API_KEY = "service-key";
+    failWith(402, {
+      error: { code: "PAID_BALANCE_ZERO", message: "insufficient credit" },
+    });
+
+    await expect(
+      callDataApi("GET", "market/price", { symbol: "BTC" })
+    ).rejects.toThrow(/no credits left[\s\S]*Billing/);
+  });
+});
