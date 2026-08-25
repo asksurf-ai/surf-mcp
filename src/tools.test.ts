@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { callDataApi } from "./tools.js";
+import { callDataApi, extractLookup } from "./tools.js";
 
 const ORIGINAL_ENV = { ...process.env };
 const ORIGINAL_FETCH = globalThis.fetch;
@@ -81,5 +81,34 @@ describe("callDataApi error surfacing", () => {
     await expect(
       callDataApi("GET", "market/price", { symbol: "BTC" })
     ).rejects.toThrow(/no credits left[\s\S]*Billing/);
+  });
+});
+
+describe("extractLookup", () => {
+  test("pulls the Lookup sentence out of an endpoint description", () => {
+    const desc =
+      "Returns token unlock time-series.\n\n**Lookup:** by project UUID (`id`) or token `symbol`. " +
+      "Filter by date range with `from`/`to`.\n\n**Included fields:** a, b, c";
+    expect(extractLookup(desc)).toBe(
+      "by project UUID (`id`) or token `symbol`. Filter by date range with `from`/`to`."
+    );
+  });
+
+  test("stops before the next bold section", () => {
+    const desc = "Intro.\n\n**Lookup:** pass exactly one of `id` or `project_slug`.\n**Notes:** other";
+    expect(extractLookup(desc)).toBe("pass exactly one of `id` or `project_slug`.");
+  });
+
+  test("returns undefined when there is no Lookup section", () => {
+    expect(extractLookup("Plain description with no lookup guidance")).toBeUndefined();
+    expect(extractLookup(undefined)).toBeUndefined();
+    expect(extractLookup("")).toBeUndefined();
+  });
+
+  test("caps very long sections", () => {
+    const long = `**Lookup:** ${"x".repeat(400)}`;
+    const out = extractLookup(long)!;
+    expect(out.length).toBe(220);
+    expect(out.endsWith("...")).toBe(true);
   });
 });
