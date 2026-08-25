@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { resolveAuthorization, type RequestAuth } from "./auth.js";
+import { explainDataApiError } from "./errors.js";
 import type { OpenAPISpec, OpenAPIOperation, OpenAPIParameter } from "./spec.js";
 
 const DATA_API_BASE_URL =
@@ -234,16 +235,25 @@ export async function callDataApi(
   }
 
   if (!response.ok) {
-    const apiMessage =
+    const apiError =
       typeof result === "object" &&
       result !== null &&
       "error" in result &&
       typeof result.error === "object" &&
-      result.error !== null &&
-      "message" in result.error
-        ? String(result.error.message)
-        : raw;
-    throw new Error(`Surf API ${response.status}: ${apiMessage}`);
+      result.error !== null
+        ? (result.error as { message?: unknown; code?: unknown })
+        : undefined;
+
+    throw new Error(
+      explainDataApiError({
+        status: response.status,
+        code:
+          typeof apiError?.code === "string" ? apiError.code : undefined,
+        message:
+          typeof apiError?.message === "string" ? apiError.message : raw,
+        authenticated: Boolean(authorization),
+      })
+    );
   }
 
   return result;
