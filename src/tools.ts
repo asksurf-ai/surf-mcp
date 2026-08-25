@@ -22,6 +22,8 @@ interface OperationInfo {
   summary: string;
   params: ParamInfo[];
   hasPathParams: boolean;
+  /** Which identifier to pass, when the endpoint documents a choice. */
+  lookup?: string;
 }
 
 interface TagGroup {
@@ -88,6 +90,25 @@ function extractParams(parameters: OpenAPIParameter[]): ParamInfo[] {
     }));
 }
 
+/**
+ * Pulls the authored "**Lookup:**" section out of an endpoint description —
+ * e.g. "by project UUID (`id`) or token `symbol`".
+ *
+ * These endpoints accept either of two identifiers, which OpenAPI cannot
+ * express: marking either one `required` would be wrong, so both render as
+ * optional. An agent then calls with neither and gets a 400. Carrying the
+ * sentence through is what tells it which parameter to supply.
+ */
+export function extractLookup(description?: string): string | undefined {
+  if (!description) return undefined;
+  const match = description.match(/\*\*Lookup:?\*\*([\s\S]*?)(?=\n\s*\n|\*\*|$)/);
+  const captured = match?.[1];
+  if (!captured) return undefined;
+  const text = captured.replace(/\s+/g, " ").trim();
+  if (!text) return undefined;
+  return text.length > 220 ? `${text.slice(0, 217)}...` : text;
+}
+
 function buildDescription(group: TagGroup): string {
   const lines: string[] = [
     `Use this when the user needs ${group.name.toLowerCase()} data from Surf.`,
@@ -108,6 +129,9 @@ function buildDescription(group: TagGroup): string {
         return s;
       });
       lines.push(`    params: ${paramStrs.join(", ")}`);
+    }
+    if (op.lookup) {
+      lines.push(`    lookup: ${op.lookup}`);
     }
   }
 
@@ -155,6 +179,7 @@ function parseSpec(spec: OpenAPISpec): TagGroup[] {
         summary: op.summary ?? op.description ?? op.operationId,
         params,
         hasPathParams: path.includes("{"),
+        lookup: extractLookup(op.description),
       };
 
       if (!groups.has(tag)) {
