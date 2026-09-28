@@ -11,9 +11,18 @@ export interface ProtectedResourceMetadata {
   resource: string;
   authorization_servers: string[];
   bearer_methods_supported: string[];
+  scopes_supported: string[];
   resource_name: string;
   resource_documentation: string;
 }
+
+/**
+ * Scopes the Surf authorization server grants. data:read is the base scope
+ * of every grant; openid and email turn on OpenID Connect ID tokens and the
+ * userinfo endpoint, which hosts such as ChatGPT need to learn the signed-in
+ * account's verified email (workspace domain restrictions).
+ */
+export const SURF_OAUTH_SCOPES = ["data:read", "openid", "email"] as const;
 
 export function buildProtectedResourceMetadata(): ProtectedResourceMetadata | null {
   const authorizationServer = process.env.SURF_OAUTH_AUTHORIZATION_SERVER;
@@ -22,26 +31,32 @@ export function buildProtectedResourceMetadata(): ProtectedResourceMetadata | nu
   const resource = process.env.SURF_MCP_RESOURCE_URL ?? "https://mcp.asksurf.ai";
   return {
     resource,
-    // We advertise ourselves and relay the authorization-server document
+    // We advertise ourselves and relay the authorization-server documents
     // (see handleAuthorizationServerMetadataProxy): the gateway ingress does
     // not forward root /.well-known/* to the authorization server, and the
     // MCP SDK's discovery candidates for a path-bearing issuer never include
     // the OAuth-named path-append variant the server actually exposes.
     authorization_servers: [resource],
     bearer_methods_supported: ["header"],
+    scopes_supported: [...SURF_OAUTH_SCOPES],
     resource_name: "Surf MCP",
     resource_documentation: "https://github.com/asksurf-ai/surf-mcp",
   };
 }
 
+/** The authorization-server documents this origin relays. */
+export type AuthorizationServerDocument =
+  | "oauth-authorization-server"
+  | "openid-configuration";
+
 /**
- * Relays the authorization server's RFC 8414 document from this origin so
- * SDK discovery ("<origin>/.well-known/oauth-authorization-server") succeeds
- * without gateway ingress changes. Endpoint URLs inside the document remain
- * the authorization server's own absolute URLs.
+ * Relays one of the authorization server's well-known documents from this
+ * origin so discovery ("<origin>/.well-known/<document>") succeeds without
+ * gateway ingress changes. Endpoint URLs inside the document remain the
+ * authorization server's own absolute URLs.
  */
-export async function handleAuthorizationServerMetadataProxy(
-  _req: IncomingMessage,
+export async function relayAuthorizationServerDocument(
+  document: AuthorizationServerDocument,
   res: ServerResponse
 ): Promise<void> {
   const authorizationServer = process.env.SURF_OAUTH_AUTHORIZATION_SERVER;
@@ -51,7 +66,7 @@ export async function handleAuthorizationServerMetadataProxy(
     return;
   }
 
-  const upstream = `${authorizationServer.replace(/\/+$/, "")}/.well-known/oauth-authorization-server`;
+  const upstream = `${authorizationServer.replace(/\/+$/, "")}/.well-known/${document}`;
   try {
     const response = await fetch(upstream);
     if (!response.ok) {
@@ -69,6 +84,26 @@ export async function handleAuthorizationServerMetadataProxy(
     res.writeHead(502, { "content-type": "application/json" });
     res.end(JSON.stringify({ error: "authorization server metadata unavailable" }));
   }
+}
+
+/** RFC 8414 authorization server metadata, relayed from the issuer. */
+export async function handleAuthorizationServerMetadataProxy(
+  _req: IncomingMessage,
+  res: ServerResponse
+): Promise<void> {
+  await relayAuthorizationServerDocument("oauth-authorization-server", res);
+}
+
+/**
+ * OpenID Connect Discovery document, relayed from the issuer. Hosts that
+ * support workspace domain restrictions (ChatGPT) look here for the
+ * userinfo endpoint and the openid/email scopes.
+ */
+export async function handleOpenIDConfigurationProxy(
+  _req: IncomingMessage,
+  res: ServerResponse
+): Promise<void> {
+  await relayAuthorizationServerDocument("openid-configuration", res);
 }
 
 export function handleProtectedResourceRequest(
