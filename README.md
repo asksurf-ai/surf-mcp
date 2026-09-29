@@ -93,7 +93,7 @@ Environment variables for OAuth discovery and login:
 
 | Variable | Purpose |
 |----------|---------|
-| `SURF_OAUTH_AUTHORIZATION_SERVER` | Issuer URL of the Surf OAuth authorization server (e.g. `https://api.asksurf.ai/muninn/v2/oauth`). Unset (default) keeps the metadata endpoints dark. |
+| `SURF_OAUTH_AUTHORIZATION_SERVER` | Issuer URL of the Surf OAuth authorization server (e.g. `https://api.asksurf.ai/muninn/v2/oauth`), advertised verbatim as the protected resource's `authorization_servers` entry — it must equal the `issuer` in the server's discovery document, since OpenID Connect clients compare the two by exact string match. Unset (default) keeps the metadata endpoints dark. |
 | `SURF_MCP_RESOURCE_URL` | Public URL of this MCP deployment (default `https://mcp.asksurf.ai`). |
 | `SURF_MCP_REQUIRE_AUTH` | `1`/`true` makes `/mcp` answer credential-less requests with `401` + `WWW-Authenticate`, which is what makes MCP clients open the OAuth login in the user's browser. Requires the discovery endpoint to be live. |
 

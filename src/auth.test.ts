@@ -39,12 +39,14 @@ describe("buildProtectedResourceMetadata", () => {
   });
 
   test("builds RFC 9728 metadata from environment", () => {
-    process.env.SURF_OAUTH_AUTHORIZATION_SERVER = "https://api.ask.surf";
+    process.env.SURF_OAUTH_AUTHORIZATION_SERVER = "https://api.ask.surf/muninn/v2/oauth/";
     process.env.SURF_MCP_RESOURCE_URL = "https://mcp.example.com";
 
     expect(buildProtectedResourceMetadata()).toEqual({
       resource: "https://mcp.example.com",
-      authorization_servers: ["https://mcp.example.com"],
+      // The issuer itself, trailing slash stripped: OIDC clients compare the
+      // discovery document's issuer to this value by exact string match.
+      authorization_servers: ["https://api.ask.surf/muninn/v2/oauth"],
       bearer_methods_supported: ["header"],
       scopes_supported: ["data:read", "openid", "email"],
       resource_name: "Surf MCP",

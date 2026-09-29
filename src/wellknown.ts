@@ -31,12 +31,15 @@ export function buildProtectedResourceMetadata(): ProtectedResourceMetadata | nu
   const resource = process.env.SURF_MCP_RESOURCE_URL ?? "https://mcp.asksurf.ai";
   return {
     resource,
-    // We advertise ourselves and relay the authorization-server documents
-    // (see handleAuthorizationServerMetadataProxy): the gateway ingress does
-    // not forward root /.well-known/* to the authorization server, and the
-    // MCP SDK's discovery candidates for a path-bearing issuer never include
-    // the OAuth-named path-append variant the server actually exposes.
-    authorization_servers: [resource],
+    // Advertise the real issuer. OpenID Connect clients (ChatGPT) fetch
+    // <authorization_server>/.well-known/openid-configuration and compare the
+    // document's issuer to that URL by exact string match, so advertising
+    // ourselves and relaying the document made the OIDC layer look invalid.
+    // The issuer serves both documents at the path-append well-known URLs,
+    // which is the candidate the MCP SDK reaches once the gateway 404s the
+    // root-inserted forms. The relayed copies below stay for clients that only
+    // look at the MCP origin.
+    authorization_servers: [authorizationServer.replace(/\/+$/, "")],
     bearer_methods_supported: ["header"],
     scopes_supported: [...SURF_OAUTH_SCOPES],
     resource_name: "Surf MCP",
