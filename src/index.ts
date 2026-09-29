@@ -5,6 +5,7 @@ import { createSurfServer, SERVER_VERSION } from "./server.js";
 import { loadSpec } from "./spec.js";
 import {
   handleAuthorizationServerMetadataProxy,
+  handleOpenIDConfigurationProxy,
   handleProtectedResourceRequest,
 } from "./wellknown.js";
 
@@ -48,6 +49,14 @@ async function startHttp(): Promise<void> {
       url.pathname === "/.well-known/oauth-authorization-server"
     ) {
       await handleAuthorizationServerMetadataProxy(req, res);
+      return;
+    }
+
+    if (
+      req.method === "GET" &&
+      url.pathname === "/.well-known/openid-configuration"
+    ) {
+      await handleOpenIDConfigurationProxy(req, res);
       return;
     }
 

@@ -78,6 +78,8 @@ The server exposes:
 - `POST /mcp` — stateless MCP Streamable HTTP endpoint
 - `GET /healthz` — deployment health check
 - `GET /.well-known/oauth-protected-resource` — OAuth resource metadata (RFC 9728); returns 404 until `SURF_OAUTH_AUTHORIZATION_SERVER` is configured
+- `GET /.well-known/oauth-authorization-server` — the authorization server's RFC 8414 metadata, relayed from the issuer
+- `GET /.well-known/openid-configuration` — the authorization server's OpenID Connect discovery document, relayed from the issuer; hosts that enforce workspace domain restrictions (ChatGPT Enterprise/Team) read the `userinfo_endpoint` and the `openid`/`email` scopes from here
 
 ### Authentication
 
@@ -91,7 +93,7 @@ Environment variables for OAuth discovery and login:
 
 | Variable | Purpose |
 |----------|---------|
-| `SURF_OAUTH_AUTHORIZATION_SERVER` | Base URL of the Surf OAuth authorization server. Unset (default) keeps the metadata endpoint dark. |
+| `SURF_OAUTH_AUTHORIZATION_SERVER` | Issuer URL of the Surf OAuth authorization server (e.g. `https://api.asksurf.ai/muninn/v2/oauth`). Unset (default) keeps the metadata endpoints dark. |
 | `SURF_MCP_RESOURCE_URL` | Public URL of this MCP deployment (default `https://mcp.asksurf.ai`). |
 | `SURF_MCP_REQUIRE_AUTH` | `1`/`true` makes `/mcp` answer credential-less requests with `401` + `WWW-Authenticate`, which is what makes MCP clients open the OAuth login in the user's browser. Requires the discovery endpoint to be live. |
 
@@ -102,6 +104,8 @@ Deployment modes:
 | unset | unset | Anonymous allowance + API key passthrough (current beta) |
 | set | unset | OAuth discoverable for clients that look for it; anonymous still allowed |
 | set | set | Credential-less requests are challenged into the OAuth login flow |
+
+Scopes: `data:read` is the base scope of every grant. Requesting `openid` additionally returns an ID token and enables the userinfo endpoint; `email` releases the account's verified email through both. When registering the server with a host that supports domain restrictions, request `openid email` (the data scope is implied).
 
 Build and run the included container:
 

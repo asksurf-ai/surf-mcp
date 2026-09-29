@@ -29,8 +29,39 @@ MCP client ──► surf-mcp (mcp.asksurf.ai)          resource server entry
 
 | Endpoint | Served by | Notes |
 |----------|-----------|-------|
-| `GET /.well-known/oauth-protected-resource` | surf-mcp | Implemented. Points at the authorization server via `SURF_OAUTH_AUTHORIZATION_SERVER`. |
-| `GET /.well-known/oauth-authorization-server` | muninn | RFC 8414 metadata: issuer, `authorization_endpoint`, `token_endpoint`, `registration_endpoint`, `revocation_endpoint`, `code_challenge_methods_supported: ["S256"]`, `grant_types_supported: ["authorization_code", "refresh_token"]`. |
+| `GET /.well-known/oauth-protected-resource` | surf-mcp | Implemented. Points at the authorization server via `SURF_OAUTH_AUTHORIZATION_SERVER`; lists `scopes_supported`. |
+| `GET /.well-known/oauth-authorization-server` | muninn (relayed by surf-mcp) | RFC 8414 metadata: issuer, `authorization_endpoint`, `token_endpoint`, `registration_endpoint`, `revocation_endpoint`, `code_challenge_methods_supported: ["S256"]`, `grant_types_supported: ["authorization_code", "refresh_token"]`, plus the OpenID members below. |
+| `GET /.well-known/openid-configuration` | muninn (relayed by surf-mcp) | OpenID Connect Discovery 1.0. Same document as above: adds `userinfo_endpoint`, `jwks_uri`, `subject_types_supported: ["public"]`, `id_token_signing_alg_values_supported: ["RS256"]`, `claims_supported`. |
+
+## OpenID Connect layer
+
+Hosts such as ChatGPT can only enforce workspace domain restrictions when the
+authorization server is also an OpenID provider that reveals the signed-in
+account's verified email. The OAuth server therefore carries a thin OIDC
+layer; nothing about the data-plane access token changes.
+
+- Scopes: `data:read` (base, always granted), `openid`, `email`. Requesting
+  `openid` returns an `id_token` in the token response and enables
+  `/userinfo`; `email` releases `email` + `email_verified: true` through both.
+  A client that asks for `openid email` only still receives `data:read`, so
+  the OpenID default request keeps working against the data API.
+- `id_token`: RS256 JWT signed with the same muninn key as access tokens,
+  header `kid` = RFC 7638 thumbprint. Claims `iss` (the discovery issuer),
+  `sub` (muninn `user_id`), `aud` (the `client_id`), `exp`, `iat`, `nonce`
+  (echoed from the authorization request via the consent page), and the email
+  claims when granted. Issued on the authorization-code exchange and on
+  refresh (without `nonce`).
+- `GET|POST /v2/oauth/userinfo`: authenticates the OAuth access token
+  itself (first-party tokens are rejected, mirroring the account-API side of
+  the token-confusion defense). Requires the `openid` scope; answers
+  `{sub, email?, email_verified?}` with RFC 6750 bearer errors.
+- `GET /v2/oauth/jwks`: RFC 7517 key set with the RS256 public key.
+- Verified email source: the account's OTP-verified email, else its Google
+  email — the same rule the enterprise verified-identity snapshot uses. An
+  account without one gets an ID token and userinfo without email claims.
+- Consent page contract: forward the `nonce` query parameter from the
+  `/authorize` redirect into `POST /v2/oauth/consent` (`nonce` field), or
+  relying parties that validate the nonce will reject the ID token.
 
 ## Authorization server endpoints (muninn, new)
 

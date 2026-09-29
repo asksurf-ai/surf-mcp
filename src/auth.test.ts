@@ -46,6 +46,7 @@ describe("buildProtectedResourceMetadata", () => {
       resource: "https://mcp.example.com",
       authorization_servers: ["https://mcp.example.com"],
       bearer_methods_supported: ["header"],
+      scopes_supported: ["data:read", "openid", "email"],
       resource_name: "Surf MCP",
       resource_documentation: "https://github.com/asksurf-ai/surf-mcp",
     });
