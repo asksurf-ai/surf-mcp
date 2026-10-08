@@ -54,6 +54,11 @@ function resolveRef(ref: string, spec: OpenAPISpec): any {
   let current: any = spec;
   for (const part of parts) {
     current = current?.[part];
+    if (current === undefined) {
+      throw new Error(
+        `[surf-mcp] Failed to resolve \$ref "${ref}": path segment "${part}" not found in spec`
+      );
+    }
   }
   return current;
 }
