@@ -9,6 +9,13 @@
       }
     },
     {
+      "src": "api/mcp-chatgpt.ts",
+      "use": "@vercel/node",
+      "config": {
+        "maxDuration": 60
+      }
+    },
+    {
       "src": "api/healthz.ts",
       "use": "@vercel/node"
     },
@@ -31,12 +38,20 @@
   ],
   "routes": [
     {
+      "src": "/mcp/chatgpt/?",
+      "dest": "/api/mcp-chatgpt.ts"
+    },
+    {
       "src": "/mcp",
       "dest": "/api/mcp.ts"
     },
     {
       "src": "/healthz",
       "dest": "/api/healthz.ts"
+    },
+    {
+      "src": "/api/mcp/chatgpt/?",
+      "dest": "/api/mcp-chatgpt.ts"
     },
     {
       "src": "/api/mcp",

@@ -2,6 +2,7 @@ import { createServer as createHttpServer } from "node:http";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { handleMcpHttpRequest } from "./http.js";
 import { createSurfServer, SERVER_VERSION } from "./server.js";
+import { profileForPath } from "./profiles.js";
 import { loadSpec } from "./spec.js";
 import {
   handleAuthorizationServerMetadataProxy,
@@ -60,13 +61,14 @@ async function startHttp(): Promise<void> {
       return;
     }
 
-    if (url.pathname !== "/mcp") {
+    const profile = profileForPath(url.pathname);
+    if (!profile) {
       res.writeHead(404, { "content-type": "application/json" });
       res.end(JSON.stringify({ error: "not_found" }));
       return;
     }
 
-    await handleMcpHttpRequest(req, res);
+    await handleMcpHttpRequest(req, res, profile);
   });
 
   httpServer.listen(port, host, () => {
