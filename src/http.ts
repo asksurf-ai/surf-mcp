@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { buildAuthChallenge } from "./auth.js";
+import type { ProfileName } from "./profiles.js";
 import { createSurfServer } from "./server.js";
 import { loadSpec } from "./spec.js";
 
@@ -13,7 +14,8 @@ function getSpec() {
 
 export async function handleMcpHttpRequest(
   req: IncomingMessage,
-  res: ServerResponse
+  res: ServerResponse,
+  profile: ProfileName = "default"
 ): Promise<void> {
   // Auth-required deployments challenge credential-less requests so MCP
   // clients launch the OAuth login on the user's device (see buildAuthChallenge).
@@ -40,9 +42,11 @@ export async function handleMcpHttpRequest(
   const spec = await getSpec();
   // Forward the caller's own credentials so usage and billing attach to the
   // caller's Surf account; resolveAuthorization falls back to the service key.
-  const server = createSurfServer(spec, {
-    authorization: req.headers.authorization,
-  });
+  const server = createSurfServer(
+    spec,
+    { authorization: req.headers.authorization },
+    profile
+  );
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
     enableJsonResponse: true,

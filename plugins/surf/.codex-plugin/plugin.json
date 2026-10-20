@@ -1,7 +1,7 @@
 {
   "name": "surf",
   "version": "0.2.0+codex.20260805082751",
-  "description": "Live crypto market, on-chain, wallet, social, news, and prediction-market data from Surf.",
+  "description": "Live crypto market, on-chain, wallet, social, and prediction-market data from Surf.",
   "author": {
     "name": "Surf",
     "email": "hello@asksurf.ai",
@@ -15,14 +15,13 @@
     "market-data",
     "on-chain",
     "wallets",
-    "news",
     "prediction-markets"
   ],
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "Surf",
     "shortDescription": "Live crypto and on-chain intelligence",
-    "longDescription": "Research crypto markets with live prices, exchange data, wallet and token activity, social signals, DeFi metrics, news, on-chain SQL, and prediction markets through Surf's MCP data tools.",
+    "longDescription": "Research crypto markets with live prices, exchange data, wallet and token activity, social signals, DeFi metrics, on-chain SQL, and prediction markets through Surf's MCP data tools.",
     "developerName": "Surf",
     "category": "Productivity",
     "capabilities": [

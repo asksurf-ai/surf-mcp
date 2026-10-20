@@ -63,7 +63,7 @@ The repository contains a Codex/ChatGPT plugin package under [`plugins/surf`](pl
 codex plugin marketplace add asksurf-ai/surf-mcp
 ```
 
-Register `https://mcp.asksurf.ai/mcp` in [ChatGPT Plugins](https://chatgpt.com/plugins). See [`docs/chatgpt-plugin-submission.md`](docs/chatgpt-plugin-submission.md) for the submission checklist.
+Register `https://mcp.asksurf.ai/mcp/chatgpt` in [ChatGPT Plugins](https://chatgpt.com/plugins). See [`docs/chatgpt-plugin-submission.md`](docs/chatgpt-plugin-submission.md) for the submission checklist.
 
 ## Streamable HTTP deployment
 
@@ -76,6 +76,7 @@ bun run start:http
 The server exposes:
 
 - `POST /mcp` — stateless MCP Streamable HTTP endpoint
+- `POST /mcp/chatgpt` — the same endpoint with the ChatGPT tool profile, which leaves out third-party news and web content tools (see `src/profiles.ts`)
 - `GET /healthz` — deployment health check
 - `GET /.well-known/oauth-protected-resource` — OAuth resource metadata (RFC 9728); returns 404 until `SURF_OAUTH_AUTHORIZATION_SERVER` is configured
 - `GET /.well-known/oauth-authorization-server` — the authorization server's RFC 8414 metadata, relayed from the issuer
@@ -116,7 +117,7 @@ docker run --rm -p 3000:3000 -e SURF_API_KEY=your-service-api-key surf-mcp
 
 The limited beta is live at `https://mcp.asksurf.ai/mcp`. For higher capacity, keep a dedicated, rate-limited `SURF_API_KEY` in the host's secret manager; never put it in plugin manifests or client-visible responses.
 
-The included Vercel Functions adapter exposes the same endpoints from `api/mcp.ts` and `api/healthz.ts`. Deploy it to a Vercel project when a serverless beta is preferable to the container image.
+The included Vercel Functions adapter exposes the same endpoints from `api/mcp.ts`, `api/mcp-chatgpt.ts`, and `api/healthz.ts`. Deploy it to a Vercel project when a serverless beta is preferable to the container image.
 
 ## Tools
 

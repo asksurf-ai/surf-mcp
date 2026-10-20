@@ -2,7 +2,7 @@
   "mcpServers": {
     "surf": {
       "type": "http",
-      "url": "https://mcp.asksurf.ai/mcp"
+      "url": "https://mcp.asksurf.ai/mcp/chatgpt"
     }
   }
 }

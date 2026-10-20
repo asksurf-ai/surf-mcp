@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { resolveAuthorization, type RequestAuth } from "./auth.js";
 import { explainDataApiError } from "./errors.js";
+import type { Profile } from "./profiles.js";
 import type { OpenAPISpec, OpenAPIOperation, OpenAPIParameter } from "./spec.js";
 
 const DATA_API_BASE_URL =
@@ -197,6 +198,24 @@ function parseSpec(spec: OpenAPISpec): TagGroup[] {
   return Array.from(groups.values());
 }
 
+/**
+ * Keeps only the commands a profile allows and drops tools left with none.
+ * A trimmed tool also loses the spec's tag description, which describes the
+ * whole tag (hidden commands included); its command list still describes it.
+ */
+function applyProfile(groups: TagGroup[], profile?: Profile): TagGroup[] {
+  const allowed = profile?.allowedCommands;
+  if (!allowed) return groups;
+
+  return groups.flatMap((group) => {
+    const commands = new Set(allowed[group.toolName] ?? []);
+    const operations = group.operations.filter((op) => commands.has(op.command));
+    if (operations.length === 0) return [];
+    const trimmed = operations.length < group.operations.length;
+    return [{ ...group, operations, description: trimmed ? "" : group.description }];
+  });
+}
+
 function resolvePath(
   pathTemplate: string,
   params: Record<string, unknown>
@@ -287,9 +306,10 @@ export async function callDataApi(
 export function registerTools(
   server: McpServer,
   spec: OpenAPISpec,
-  auth?: RequestAuth
+  auth?: RequestAuth,
+  profile?: Profile
 ): void {
-  const groups = parseSpec(spec);
+  const groups = applyProfile(parseSpec(spec), profile);
 
   for (const group of groups) {
     const commandNames = group.operations.map((o) => o.command);

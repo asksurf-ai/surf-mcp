@@ -1,13 +1,15 @@
 # ChatGPT and Codex plugin submission
 
-Surf uses one public plugin listing shared by ChatGPT and Codex. The listing is backed by the hosted Surf MCP endpoint; `plugins/surf` is the Codex local package and `claude-plugin` is the Claude Code package.
+Surf uses one public plugin listing shared by ChatGPT and Codex. The listing is backed by the hosted Surf MCP endpoint's ChatGPT profile; `plugins/surf` is the Codex local package and `claude-plugin` is the Claude Code package.
 
 ## 1. MCP endpoint
 
 The anonymous beta is deployed at:
 
-- MCP: `https://mcp.asksurf.ai/mcp`
+- MCP: `https://mcp.asksurf.ai/mcp/chatgpt`
 - Health: `https://mcp.asksurf.ai/healthz`
+
+Register `/mcp/chatgpt`, not `/mcp`. OpenAI rejected Surf v1.0.0 because the plugin summarized or aggregated news from third-party publishers. The ChatGPT profile (`src/profiles.ts`) is an allowlist that leaves those tools out: `surf_news`, `surf_web`, and the `news`, `web`, `events`, and `fundraising` commands of `surf_search` and the `ai-news` and `pulse` commands of `surf_project`. Endpoints added to the spec later stay out of this profile until they are reviewed and listed there. `/mcp` keeps serving every tool to other clients.
 
 The endpoint has been verified with MCP protocol initialization, a 15-tool scan, and a live anonymous BTC price call. For production capacity, store a dedicated, rate-limited `SURF_API_KEY` in the deployment secret manager or add MCP-compliant OAuth 2.1.
 
@@ -16,7 +18,7 @@ The remote endpoint supports anonymous Surf API access or an optional server-sid
 ## 2. Test in ChatGPT developer mode
 
 1. In ChatGPT, open **Settings → Security and login** and enable **Developer mode**.
-2. Open [ChatGPT Plugins](https://chatgpt.com/plugins), select **+**, and register the production `/mcp` URL.
+2. Open [ChatGPT Plugins](https://chatgpt.com/plugins), select **+**, and register the production `/mcp/chatgpt` URL.
 3. Choose no authentication only while the endpoint intentionally uses anonymous access or a server-side service key. Do not paste a Surf API key into plugin metadata.
 4. Scan tools and confirm every Surf tool reports `openWorldHint: false` and `destructiveHint: false`. All tools report `readOnlyHint: true` except `surf_onchain`, which conservatively reports `false` because its `sql-job-create` command enqueues an asynchronous query job.
 5. Test in a new conversation on both ChatGPT and Codex.
@@ -53,8 +55,8 @@ production environment and redeploy; do not wrap it in JSON or add other text.
 - **Name:** Surf
 - **Short description:** Live crypto and on-chain intelligence
 - **Category:** Productivity
-- **Long description:** Research crypto markets with live prices, exchange data, wallet and token activity, social signals, DeFi metrics, news, on-chain SQL, and prediction markets through Surf's data tools.
-- **Release notes:** Initial Surf plugin submission with read-only crypto market, exchange, wallet, token, social, project, on-chain, prediction-market, fund, news, and web research tools.
+- **Long description:** Research crypto markets with live prices, exchange data, wallet and token activity, social signals, DeFi metrics, on-chain SQL, and prediction markets through Surf's data tools.
+- **Release notes:** Initial Surf plugin submission with read-only crypto market, exchange, wallet, token, social, project, on-chain, prediction-market, equity, and fund research tools. News and web content tools are not included.
 
 Starter prompts:
 
