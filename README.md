@@ -76,7 +76,7 @@ bun run start:http
 The server exposes:
 
 - `POST /mcp` — stateless MCP Streamable HTTP endpoint
-- `POST /mcp/chatgpt` — the same endpoint with the ChatGPT tool profile, which leaves out third-party news and web content tools (see `src/profiles.ts`)
+- `POST /mcp/chatgpt` — the same endpoint with the ChatGPT tool profile, which leaves out third-party news, web, signal, and X content tools (see `src/profiles.ts`)
 - `GET /healthz` — deployment health check
 - `GET /.well-known/oauth-protected-resource` — OAuth resource metadata (RFC 9728); returns 404 until `SURF_OAUTH_AUTHORIZATION_SERVER` is configured
 - `GET /.well-known/oauth-authorization-server` — the authorization server's RFC 8414 metadata, relayed from the issuer

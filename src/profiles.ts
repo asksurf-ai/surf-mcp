@@ -4,7 +4,8 @@
  * `/mcp` serves every tool the OpenAPI spec defines. `/mcp/chatgpt` serves the
  * ChatGPT plugin, which OpenAI only approves without content summarized or
  * aggregated from third-party publishers: no news feeds, news search, AI news
- * digests, or web search/fetch.
+ * digests, or web search/fetch. Signal cards (AI summaries) and X posts are
+ * left out as well.
  *
  * The ChatGPT profile is an allowlist, not a denylist: an endpoint added to
  * the spec later stays out of ChatGPT until it is reviewed and listed here,
@@ -25,7 +26,7 @@ export const PROFILES: Record<ProfileName, Profile> = {
   },
   chatgpt: {
     instructions:
-      "Use Surf for crypto market, exchange, wallet, token, social, project, on-chain, prediction-market, equity, and fund data. Resolve token symbols to contract addresses before calling address-based token tools.",
+      "Use Surf for crypto market, exchange, wallet, token, project, on-chain, prediction-market, equity, and fund data. Resolve token symbols to contract addresses before calling address-based token tools.",
     allowedCommands: {
       surf_market: [
         "price",
@@ -145,11 +146,9 @@ export const PROFILES: Record<ProfileName, Profile> = {
       ],
       // Not ai-news or its deprecated alias pulse: AI digests of news articles.
       surf_project: ["detail", "defi-metrics", "defi-ranking"],
-      surf_signal: ["detail", "projects", "token-of-the-day", "token-of-week"],
       surf_fund: ["detail", "portfolio", "ranking"],
       surf_dex: ["token-price"],
       surf_portfolio: ["wallets"],
-      surf_x: ["tweets"],
     },
   },
 };

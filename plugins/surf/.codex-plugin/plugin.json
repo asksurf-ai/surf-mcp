@@ -1,7 +1,7 @@
 {
   "name": "surf",
   "version": "0.2.0+codex.20260805082751",
-  "description": "Live crypto market, on-chain, wallet, social, and prediction-market data from Surf.",
+  "description": "Live crypto market, on-chain, wallet, and prediction-market data from Surf.",
   "author": {
     "name": "Surf",
     "email": "hello@asksurf.ai",
@@ -21,7 +21,7 @@
   "interface": {
     "displayName": "Surf",
     "shortDescription": "Live crypto and on-chain intelligence",
-    "longDescription": "Research crypto markets with live prices, exchange data, wallet and token activity, social signals, DeFi metrics, on-chain SQL, and prediction markets through Surf's MCP data tools.",
+    "longDescription": "Research crypto markets with live prices, exchange data, wallet and token activity, DeFi metrics, on-chain SQL, and prediction markets through Surf's MCP data tools.",
     "developerName": "Surf",
     "category": "Productivity",
     "capabilities": [
@@ -29,9 +29,9 @@
     ],
     "websiteURL": "https://ask.surf",
     "defaultPrompt": [
-      "What is moving the crypto market today?",
+      "Which tokens are leading the market today?",
       "Analyze this wallet's positions and recent activity.",
-      "Compare BTC and ETH market, social, and on-chain signals."
+      "Compare BTC and ETH market, exchange, and on-chain data."
     ],
     "brandColor": "#111214",
     "composerIcon": "./assets/surf.svg",

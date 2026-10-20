@@ -71,13 +71,11 @@ describe("default profile", () => {
 });
 
 describe("chatgpt profile", () => {
-  test("drops third-party news and web content, keeps data endpoints", async () => {
+  test("drops news, web, signal, and X content, keeps data endpoints", async () => {
     expect(await listCommands("chatgpt")).toEqual({
       surf_market: ["price"],
       surf_search: ["project"],
       surf_project: ["detail"],
-      surf_signal: ["detail"],
-      surf_x: ["tweets"],
     });
   });
 
@@ -120,6 +118,8 @@ describe("chatgpt profile", () => {
     const allowed = PROFILES.chatgpt.allowedCommands!;
     expect(allowed.surf_news).toBeUndefined();
     expect(allowed.surf_web).toBeUndefined();
+    expect(allowed.surf_signal).toBeUndefined();
+    expect(allowed.surf_x).toBeUndefined();
     for (const commands of Object.values(allowed)) {
       for (const command of commands) {
         expect(command).not.toMatch(/news|web|pulse|^events$|^fundraising$/);
