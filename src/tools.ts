@@ -20,6 +20,9 @@ interface ParamInfo {
   required: boolean;
   description: string;
   enumValues?: string[];
+  defaultValue?: unknown;
+  minimum?: number;
+  maximum?: number;
 }
 
 interface OperationInfo {
@@ -27,6 +30,8 @@ interface OperationInfo {
   method: string;
   path: string; // stripped path, e.g. "market/price"
   summary: string;
+  /** The endpoint's full description from the spec. */
+  description: string;
   params: ParamInfo[];
   hasPathParams: boolean;
   /** Which identifier to pass, when the endpoint documents a choice. */
@@ -76,13 +81,19 @@ function extractBodyParams(op: OpenAPIOperation, spec: OpenAPISpec): ParamInfo[]
   if (!schema?.properties) return [];
 
   const required = new Set(schema.required ?? []);
-  return Object.entries(schema.properties).map(([name, prop]: [string, any]) => ({
-    name,
-    type: prop.type ?? "string",
-    required: required.has(name),
-    description: prop.description ?? "",
-    enumValues: prop.enum,
-  }));
+  return Object.entries(schema.properties)
+    // Response-only members such as "$schema" are not inputs.
+    .filter(([, prop]: [string, any]) => !prop.readOnly)
+    .map(([name, prop]: [string, any]) => ({
+      name,
+      type: prop.type ?? "string",
+      required: required.has(name),
+      description: prop.description ?? "",
+      enumValues: prop.enum,
+      defaultValue: prop.default,
+      minimum: prop.minimum,
+      maximum: prop.maximum,
+    }));
 }
 
 function extractParams(parameters: OpenAPIParameter[]): ParamInfo[] {
@@ -94,6 +105,9 @@ function extractParams(parameters: OpenAPIParameter[]): ParamInfo[] {
       required: p.required ?? p.in === "path",
       description: p.description ?? "",
       enumValues: p.schema?.enum,
+      defaultValue: p.schema?.default,
+      minimum: p.schema?.minimum,
+      maximum: p.schema?.maximum,
     }));
 }
 
@@ -184,6 +198,7 @@ function parseSpec(spec: OpenAPISpec): TagGroup[] {
         method: method.toUpperCase(),
         path: strippedPath,
         summary: op.summary ?? op.description ?? op.operationId,
+        description: op.description ?? "",
         params,
         hasPathParams: path.includes("{"),
         lookup: extractLookup(op.description),
@@ -308,6 +323,97 @@ export async function callDataApi(
   return result;
 }
 
+/** Calls one operation and renders the result or failure as a tool result. */
+async function runOperation(
+  op: OperationInfo,
+  inputParams: Record<string, unknown>,
+  auth: RequestAuth | undefined,
+  mixedAuth: boolean
+) {
+  try {
+    const { path, remainingParams } = op.hasPathParams
+      ? resolvePath(op.path, inputParams)
+      : { path: op.path, remainingParams: inputParams };
+
+    const result = await callDataApi(op.method, path, remainingParams, auth);
+
+    return {
+      structuredContent:
+        result !== null && typeof result === "object" && !Array.isArray(result)
+          ? (result as Record<string, unknown>)
+          : { data: result },
+      content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+    };
+  } catch (err) {
+    const remedy = mixedAuth && err instanceof DataApiError ? signInRemedy(err) : null;
+    if (remedy) {
+      return {
+        content: [{ type: "text" as const, text: `Error: ${remedy.description}` }],
+        isError: true,
+        _meta: {
+          "mcp/www_authenticate": [buildSignInChallenge(remedy.error, remedy.description)],
+        },
+      };
+    }
+    return {
+      content: [{ type: "text" as const, text: `Error: ${(err as Error).message}` }],
+      isError: true,
+    };
+  }
+}
+
+/** Zod schema for one spec parameter, carrying its constraints and docs. */
+function paramSchema(param: ParamInfo): z.ZodTypeAny {
+  let schema: z.ZodTypeAny;
+  if (param.enumValues && param.enumValues.length > 0) {
+    schema = z.enum(param.enumValues.map(String) as [string, ...string[]]);
+  } else if (param.type === "integer" || param.type === "number") {
+    let num = param.type === "integer" ? z.number().int() : z.number();
+    if (typeof param.minimum === "number") num = num.min(param.minimum);
+    if (typeof param.maximum === "number") num = num.max(param.maximum);
+    schema = num;
+  } else if (param.type === "boolean") {
+    schema = z.boolean();
+  } else if (param.type === "array") {
+    schema = z.array(z.any());
+  } else if (param.type === "object") {
+    schema = z.record(z.string(), z.any());
+  } else {
+    schema = z.string();
+  }
+
+  const description =
+    param.defaultValue !== undefined
+      ? `${param.description} (default: ${JSON.stringify(param.defaultValue)})`.trim()
+      : param.description;
+  if (description) schema = schema.describe(description);
+  return param.required ? schema : schema.optional();
+}
+
+const MAX_OPERATION_DESCRIPTION = 1500;
+
+function buildOperationDescription(group: TagGroup, op: OperationInfo): string {
+  const lines = [`${op.summary}. Use this when the user needs ${group.name.toLowerCase()} data from Surf.`];
+  const body = op.description.trim();
+  if (body && body !== op.summary) {
+    lines.push(
+      body.length > MAX_OPERATION_DESCRIPTION
+        ? `${body.slice(0, MAX_OPERATION_DESCRIPTION - 3)}...`
+        : body
+    );
+  }
+  // The Lookup sentence lives in the description already; keep it when the
+  // description was cut before it.
+  if (op.lookup && !lines.join("\n").includes(op.lookup.slice(0, 40))) {
+    lines.push(`Lookup: ${op.lookup}`);
+  }
+  return lines.join("\n\n");
+}
+
+function operationToolName(group: TagGroup, op: OperationInfo): string {
+  return `${group.toolName}_${op.command.replace(/-/g, "_")}`;
+}
+
 export function registerTools(
   server: McpServer,
   spec: OpenAPISpec,
@@ -320,89 +426,76 @@ export function registerTools(
     { type: "noauth" },
     { type: "oauth2", scopes: [...SURF_OAUTH_SCOPES] },
   ];
+  // ChatGPT reads the top-level field (added in withSecuritySchemes, since
+  // the SDK drops it) and this _meta mirror.
+  const authMeta = mixedAuth ? { _meta: { securitySchemes } } : {};
+  const registered: string[] = [];
 
-  for (const group of groups) {
-    const commandNames = group.operations.map((o) => o.command);
-    const description = buildDescription(group);
+  if (profile?.perOperationTools) {
+    for (const group of groups) {
+      for (const op of group.operations) {
+        const name = operationToolName(group, op);
+        server.registerTool(
+          name,
+          {
+            title: op.summary,
+            description: buildOperationDescription(group, op),
+            inputSchema: Object.fromEntries(op.params.map((p) => [p.name, paramSchema(p)])),
+            annotations: {
+              readOnlyHint: op.command !== "sql-job-create",
+              openWorldHint: false,
+              destructiveHint: false,
+            },
+            ...authMeta,
+          },
+          async (args: Record<string, unknown>) => runOperation(op, args ?? {}, auth, mixedAuth)
+        );
+        registered.push(name);
+      }
+    }
+  } else {
+    for (const group of groups) {
+      const commandNames = group.operations.map((o) => o.command);
 
-    server.registerTool(
-      group.toolName,
-      {
-        title: `Surf ${group.name}`,
-        description,
-        inputSchema: {
-          command: z.enum(commandNames as [string, ...string[]]),
-          params: z.record(z.string(), z.any()).optional(),
+      server.registerTool(
+        group.toolName,
+        {
+          title: `Surf ${group.name}`,
+          description: buildDescription(group),
+          inputSchema: {
+            command: z.enum(commandNames as [string, ...string[]]),
+            params: z.record(z.string(), z.any()).optional(),
+          },
+          annotations: {
+            readOnlyHint: isReadOnlyGroup(group),
+            openWorldHint: false,
+            destructiveHint: false,
+          },
+          ...authMeta,
         },
-        annotations: {
-          readOnlyHint: isReadOnlyGroup(group),
-          openWorldHint: false,
-          destructiveHint: false,
-        },
-        // ChatGPT reads the top-level field (added in withSecuritySchemes,
-        // since the SDK drops it) and this _meta mirror.
-        ...(mixedAuth ? { _meta: { securitySchemes } } : {}),
-      },
-      async ({ command, params }) => {
-        const op = group.operations.find((o) => o.command === command);
-        if (!op) {
-          return {
-            content: [
-              {
-                type: "text" as const,
-                text: `Unknown command: ${command}. Valid: ${commandNames.join(", ")}`,
-              },
-            ],
-            isError: true,
-          };
-        }
-
-        try {
-          const inputParams = params ?? {};
-          const { path, remainingParams } = op.hasPathParams
-            ? resolvePath(op.path, inputParams)
-            : { path: op.path, remainingParams: inputParams };
-
-          const result = await callDataApi(op.method, path, remainingParams, auth);
-
-          return {
-            structuredContent:
-              result !== null && typeof result === "object" && !Array.isArray(result)
-                ? (result as Record<string, unknown>)
-                : { data: result },
-            content: [
-              { type: "text" as const, text: JSON.stringify(result, null, 2) },
-            ],
-          };
-        } catch (err) {
-          const remedy =
-            mixedAuth && err instanceof DataApiError ? signInRemedy(err) : null;
-          if (remedy) {
+        async ({ command, params }) => {
+          const op = group.operations.find((o) => o.command === command);
+          if (!op) {
             return {
-              content: [{ type: "text" as const, text: `Error: ${remedy.description}` }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: `Unknown command: ${command}. Valid: ${commandNames.join(", ")}`,
+                },
+              ],
               isError: true,
-              _meta: {
-                "mcp/www_authenticate": [
-                  buildSignInChallenge(remedy.error, remedy.description),
-                ],
-              },
             };
           }
-          return {
-            content: [
-              { type: "text" as const, text: `Error: ${(err as Error).message}` },
-            ],
-            isError: true,
-          };
+          return runOperation(op, params ?? {}, auth, mixedAuth);
         }
-      }
-    );
+      );
+      registered.push(group.toolName);
+    }
   }
 
   if (mixedAuth) withSecuritySchemes(server, securitySchemes);
 
-  const message =
-    `[surf-mcp] Registered ${groups.length} tools: ${groups.map((g) => g.toolName).join(", ")}`;
+  const message = `[surf-mcp] Registered ${registered.length} tools: ${registered.join(", ")}`;
 
   // stdout is reserved for the MCP protocol in stdio mode. Hosted HTTP
   // runtimes can use stdout so routine startup messages are not reported as

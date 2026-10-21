@@ -1,6 +1,6 @@
 {
   "name": "surf",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Live crypto market, exchange, on-chain, wallet, and prediction-market data from Surf.",
   "author": {
     "name": "Cyber",
@@ -48,32 +48,32 @@
             {
               "description": "Current price of a major asset",
               "prompt": "What is the current BTC price?",
-              "tools_triggered": "surf_market",
-              "expected_behavior": "Calls surf_market with the price command for BTC and reports the latest USD price with its timestamp."
+              "tools_triggered": "surf_market_price",
+              "expected_behavior": "Calls surf_market_price for BTC and reports the latest USD price with its timestamp."
             },
             {
               "description": "Compare perpetual funding rates",
               "prompt": "Compare BTC and ETH funding rates on Binance.",
-              "tools_triggered": "surf_exchange",
-              "expected_behavior": "Calls surf_exchange with funding-history for BTC/USDT and ETH/USDT and compares the latest rates without inventing exchanges that were not returned."
+              "tools_triggered": "surf_exchange_funding_history",
+              "expected_behavior": "Calls surf_exchange_funding_history for BTC/USDT and ETH/USDT and compares the latest rates without inventing exchanges that were not returned."
             },
             {
               "description": "DeFi protocol ranking",
               "prompt": "Which DeFi protocols have the highest TVL right now?",
-              "tools_triggered": "surf_project",
-              "expected_behavior": "Calls surf_project with defi-ranking and the tvl metric, then lists the top protocols with their TVL values."
+              "tools_triggered": "surf_project_defi_ranking",
+              "expected_behavior": "Calls surf_project_defi_ranking with the tvl metric, then lists the top protocols with their TVL values."
             },
             {
               "description": "Prediction market discovery",
               "prompt": "Find active Bitcoin prediction markets on Polymarket and Kalshi and compare their odds.",
-              "tools_triggered": "surf_search, surf_prediction_market",
-              "expected_behavior": "Searches prediction markets for Bitcoin, keeps the Polymarket and Kalshi platform labels, and compares probabilities only between markets that ask the same question."
+              "tools_triggered": "surf_search_prediction_market",
+              "expected_behavior": "Calls surf_search_prediction_market for Bitcoin, keeps the Polymarket and Kalshi platform labels, and compares probabilities only between markets that ask the same question."
             },
             {
               "description": "Hyperliquid trader leaderboard",
               "prompt": "Who are the top traders on the Hyperliquid leaderboard?",
-              "tools_triggered": "surf_hyperliquid",
-              "expected_behavior": "Calls surf_hyperliquid with leaderboard and lists the top-ranked trader addresses with the performance figures returned."
+              "tools_triggered": "surf_hyperliquid_leaderboard",
+              "expected_behavior": "Calls surf_hyperliquid_leaderboard and lists the top-ranked trader addresses with the performance figures returned."
             }
           ],
           "negative": [
@@ -95,7 +95,7 @@
         "commerce_description": "Surf provides read-only market and on-chain data. It does not sell products, process payments, or execute trades."
       },
       "publication": {
-        "release_notes": "Connects the Surf MCP server's ChatGPT profile (https://mcp.asksurf.ai/mcp/chatgpt). Read-only crypto market, exchange, wallet, token, project, on-chain, prediction-market, equity, and fund tools. News, web search, AI signal summaries, and X content are not included, addressing the v1.0.0 review feedback about third-party news content."
+        "release_notes": "Connects the Surf MCP server's ChatGPT profile (https://mcp.asksurf.ai/mcp/chatgpt). Each data operation is its own read-only tool with a typed input schema: crypto prices, rankings, exchange funding and klines, Hyperliquid, Polymarket and Kalshi markets, equities, on-chain SQL, wallets, tokens, projects, and funds. News, web search, AI signal summaries, and X content are not included."
       }
     }
   }

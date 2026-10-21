@@ -19,6 +19,8 @@ export interface OpenAPIParameter {
     enum?: string[];
     default?: unknown;
     format?: string;
+    minimum?: number;
+    maximum?: number;
   };
 }
 
