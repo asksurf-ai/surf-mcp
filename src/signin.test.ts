@@ -59,8 +59,11 @@ async function connect(profile: ProfileName, auth?: RequestAuth) {
 async function callPrice(profile: ProfileName, auth?: RequestAuth) {
   const client = await connect(profile, auth);
   return client.callTool({
-    name: "surf_market",
-    arguments: { command: "price", params: { symbol: "BTC" } },
+    name: profile === "chatgpt" ? "surf_market_price" : "surf_market",
+    arguments:
+      profile === "chatgpt"
+        ? { symbol: "BTC" }
+        : { command: "price", params: { symbol: "BTC" } },
   });
 }
 
@@ -85,14 +88,14 @@ function text(result: Awaited<ReturnType<typeof callPrice>>): string {
 
 describe("chatgpt profile tool descriptors", () => {
   test("advertise noauth and oauth2 security schemes", async () => {
-    const tool = (await rawTools("chatgpt")).find((t) => t.name === "surf_market")!;
+    const tool = (await rawTools("chatgpt")).find((t) => t.name === "surf_market_price")!;
     expect(tool.securitySchemes).toEqual(SCHEMES);
     expect(tool._meta?.securitySchemes).toEqual(SCHEMES);
   });
 
   test("advertise nothing while OAuth is not configured", async () => {
     delete process.env.SURF_OAUTH_AUTHORIZATION_SERVER;
-    const tool = (await rawTools("chatgpt")).find((t) => t.name === "surf_market")!;
+    const tool = (await rawTools("chatgpt")).find((t) => t.name === "surf_market_price")!;
     expect(tool.securitySchemes).toBeUndefined();
     expect(tool._meta?.securitySchemes).toBeUndefined();
   });

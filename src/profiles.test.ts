@@ -71,33 +71,30 @@ describe("default profile", () => {
 });
 
 describe("chatgpt profile", () => {
+  async function toolNames(): Promise<string[]> {
+    const { tools } = await (await connect("chatgpt")).listTools();
+    return tools.map((t) => t.name).sort();
+  }
+
   test("drops news, web, signal, and X content, keeps data endpoints", async () => {
-    expect(await listCommands("chatgpt")).toEqual({
-      surf_market: ["price"],
-      surf_search: ["project"],
-      surf_project: ["detail"],
-    });
+    expect(await toolNames()).toEqual([
+      "surf_market_price",
+      "surf_project_detail",
+      "surf_search_project",
+    ]);
   });
 
   test("does not expose endpoints added to the spec later", async () => {
-    const tools = await listCommands("chatgpt");
-    expect(tools.surf_brand_new).toBeUndefined();
+    const names = await toolNames();
+    expect(names.some((n) => n.startsWith("surf_brand_new"))).toBe(false);
   });
 
-  test("tool descriptions do not advertise hidden commands", async () => {
-    const client = await connect("chatgpt");
-    const { tools } = await client.listTools();
-    const search = tools.find((t) => t.name === "surf_search")!;
-    expect(search.description).toContain("project");
-    expect(search.description).not.toMatch(/\bnews\b|\bweb\b|\bevents\b/);
-  });
-
-  test("keeps the tag description only for tools it did not trim", async () => {
-    const client = await connect("chatgpt");
-    const { tools } = await client.listTools();
-    const byName = Object.fromEntries(tools.map((t) => [t.name, t.description]));
-    expect(byName.surf_search).not.toContain("news articles");
-    expect(byName.surf_market).toContain("Prices and rankings.");
+  test("no tool name or description mentions news or web", async () => {
+    const { tools } = await (await connect("chatgpt")).listTools();
+    for (const tool of tools) {
+      expect(tool.name).not.toMatch(/news|web/);
+      expect(tool.description ?? "").not.toMatch(/\bnews\b|\bweb\b/i);
+    }
   });
 
   test("server instructions do not mention news or web", async () => {
@@ -105,11 +102,11 @@ describe("chatgpt profile", () => {
     expect(client.getInstructions()).not.toMatch(/news|web/i);
   });
 
-  test("a hidden command cannot be called", async () => {
+  test("a hidden operation cannot be called", async () => {
     const client = await connect("chatgpt");
     const result = await client.callTool({
-      name: "surf_search",
-      arguments: { command: "news", params: { q: "btc" } },
+      name: "surf_search_news",
+      arguments: { q: "btc" },
     });
     expect(result.isError).toBe(true);
   });
