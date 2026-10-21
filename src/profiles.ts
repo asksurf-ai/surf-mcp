@@ -17,6 +17,12 @@ export interface Profile {
   /** Tool name → commands the profile exposes. Omitted: expose everything. */
   allowedCommands?: Readonly<Record<string, readonly string[]>>;
   instructions: string;
+  /**
+   * ChatGPT's mixed auth: tools run anonymously, and a call that needs a
+   * signed-in account asks the host to link one (see signInRemedy). Only
+   * takes effect while the deployment advertises OAuth.
+   */
+  mixedAuth?: boolean;
 }
 
 export const PROFILES: Record<ProfileName, Profile> = {
@@ -27,6 +33,7 @@ export const PROFILES: Record<ProfileName, Profile> = {
   chatgpt: {
     instructions:
       "Use Surf for crypto market, exchange, wallet, token, project, on-chain, prediction-market, equity, and fund data. Resolve token symbols to contract addresses before calling address-based token tools.",
+    mixedAuth: true,
     allowedCommands: {
       surf_market: [
         "price",

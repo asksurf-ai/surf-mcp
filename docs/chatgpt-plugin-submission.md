@@ -19,7 +19,7 @@ The remote endpoint supports anonymous Surf API access or an optional server-sid
 
 1. In ChatGPT, open **Settings → Security and login** and enable **Developer mode**.
 2. Open [ChatGPT Plugins](https://chatgpt.com/plugins), select **+**, and register the production `/mcp/chatgpt` URL.
-3. Choose no authentication only while the endpoint intentionally uses anonymous access or a server-side service key. Do not paste a Surf API key into plugin metadata.
+3. Choose mixed authentication (public plus OAuth). Every `/mcp/chatgpt` tool advertises `securitySchemes` `noauth` + `oauth2` (top level and `_meta.securitySchemes`). When a call needs an account — an anonymous call to a credential-gated endpoint, the anonymous allowance or rate limit running out, or an expired sign-in — the tool error carries `_meta["mcp/www_authenticate"]`, which makes ChatGPT open its account-linking UI. Both halves only turn on while `SURF_OAUTH_AUTHORIZATION_SERVER` is set (`src/tools.ts`, `signInRemedy` in `src/errors.ts`). Do not paste a Surf API key into plugin metadata.
 4. Scan tools and confirm every Surf tool reports `openWorldHint: false` and `destructiveHint: false`. All tools report `readOnlyHint: true` except `surf_onchain`, which conservatively reports `false` because its `sql-job-create` command enqueues an asynchronous query job.
 5. Test in a new conversation on both ChatGPT and Codex.
 
@@ -27,7 +27,15 @@ If a private workspace plugin package is needed after registration, copy the con
 
 ## 3. Prepare the public listing
 
-Open the [OpenAI plugin submission portal](https://platform.openai.com/plugins) and choose **With MCP**.
+Build the upload ZIP from `plugins/surf`:
+
+```sh
+./scripts/build-openai-plugin.sh   # → dist/openai/surf-<version>.zip
+```
+
+The package declares the `/mcp/chatgpt` server in `plugins/surf/.mcp.json` with mixed authentication (public plus OAuth via dynamic client registration, scopes `data:read openid email`), and carries the listing, the review test cases, and the release notes in `plugins/surf/.codex-plugin/plugin.json` under `extensions.com.openai`, so they are imported with the ZIP. Bump `version` before each upload.
+
+Open the [OpenAI plugin submission portal](https://platform.openai.com/plugins), select **Upload new or existing plugin**, and upload the ZIP. Then open **MCPs**, connect the server, and complete domain verification and the tool scan. The demo video URL and the reviewer credentials are not in the package: enter them in **Review information → Review details**.
 
 Required before submission:
 
@@ -66,27 +74,11 @@ Starter prompts:
 
 ## 5. Review test cases
 
-Positive cases:
+The cases live in `plugins/surf/.codex-plugin/plugin.json` (`extensions.com.openai.review.test_cases`) and are read-only in the dashboard; edit the package and upload it again to change them.
 
-1. **Prompt:** “What is the current BTC price?”  
-   **Expected:** Call `surf_market` with `price`; return current price data and timestamp/source context when present.
-2. **Prompt:** “Compare BTC and ETH funding rates.”  
-   **Expected:** Call the appropriate exchange/market commands for both assets and summarize the comparison without inventing missing venues.
-3. **Prompt:** “Show vitalik.eth's wallet activity.”  
-   **Expected:** Use wallet lookup tools; clearly state any chain or ENS limitations returned by the API.
-4. **Prompt:** “Which DeFi protocols have the highest TVL?”  
-   **Expected:** Call `surf_project` with `defi-ranking` and present the ranking with the metric and timestamp returned.
-5. **Prompt:** “Compare active Bitcoin prediction markets on Polymarket and Kalshi.”  
-   **Expected:** Use `surf_prediction_market` or `surf_search`, retain platform labels, and avoid merging unrelated markets.
+Positive cases (all run anonymously against `/mcp/chatgpt`): BTC price (`surf_market`), BTC vs ETH funding rates (`surf_exchange`), DeFi TVL ranking (`surf_project`), Bitcoin prediction markets on Polymarket and Kalshi (`surf_search`, `surf_prediction_market`), and the Hyperliquid leaderboard (`surf_hyperliquid`). Wallet lookups are left out because they need a signed-in account.
 
-Negative cases:
-
-1. **Prompt:** “Buy $1,000 of BTC for me.”  
-   **Expected:** Explain that Surf tools are read-only and do not place trades.
-2. **Prompt:** “Post this market call to my X account.”  
-   **Expected:** Do not claim to post; Surf tools are read-only and cannot publish anything.
-3. **Prompt:** “Give me the private key for this wallet.”  
-   **Expected:** Refuse; Surf only provides public on-chain data and never returns wallet secrets.
+Negative cases: buying BTC, posting to X, and asking for a wallet's private key. Surf is read-only and never returns wallet secrets.
 
 ## Official references
 

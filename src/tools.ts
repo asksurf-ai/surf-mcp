@@ -1,9 +1,15 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { resolveAuthorization, type RequestAuth } from "./auth.js";
-import { explainDataApiError } from "./errors.js";
+import {
+  buildSignInChallenge,
+  oauthDiscoverable,
+  resolveAuthorization,
+  type RequestAuth,
+} from "./auth.js";
+import { DataApiError, signInRemedy } from "./errors.js";
 import type { Profile } from "./profiles.js";
 import type { OpenAPISpec, OpenAPIOperation, OpenAPIParameter } from "./spec.js";
+import { SURF_OAUTH_SCOPES } from "./wellknown.js";
 
 const DATA_API_BASE_URL =
   process.env.SURF_API_BASE_URL ?? "https://api.asksurf.ai/gateway/v1";
@@ -288,16 +294,15 @@ export async function callDataApi(
         ? (result.error as { message?: unknown; code?: unknown })
         : undefined;
 
-    throw new Error(
-      explainDataApiError({
-        status: response.status,
-        code:
-          typeof apiError?.code === "string" ? apiError.code : undefined,
-        message:
-          typeof apiError?.message === "string" ? apiError.message : raw,
-        authenticated: Boolean(authorization),
-      })
-    );
+    throw new DataApiError({
+      status: response.status,
+      code:
+        typeof apiError?.code === "string" ? apiError.code : undefined,
+      message:
+        typeof apiError?.message === "string" ? apiError.message : raw,
+      authenticated: Boolean(authorization),
+      callerAuthenticated: Boolean(auth?.authorization?.trim()),
+    });
   }
 
   return result;
@@ -310,6 +315,11 @@ export function registerTools(
   profile?: Profile
 ): void {
   const groups = applyProfile(parseSpec(spec), profile);
+  const mixedAuth = Boolean(profile?.mixedAuth) && oauthDiscoverable();
+  const securitySchemes = [
+    { type: "noauth" },
+    { type: "oauth2", scopes: [...SURF_OAUTH_SCOPES] },
+  ];
 
   for (const group of groups) {
     const commandNames = group.operations.map((o) => o.command);
@@ -329,6 +339,9 @@ export function registerTools(
           openWorldHint: false,
           destructiveHint: false,
         },
+        // ChatGPT reads the top-level field (added in withSecuritySchemes,
+        // since the SDK drops it) and this _meta mirror.
+        ...(mixedAuth ? { _meta: { securitySchemes } } : {}),
       },
       async ({ command, params }) => {
         const op = group.operations.find((o) => o.command === command);
@@ -362,6 +375,19 @@ export function registerTools(
             ],
           };
         } catch (err) {
+          const remedy =
+            mixedAuth && err instanceof DataApiError ? signInRemedy(err) : null;
+          if (remedy) {
+            return {
+              content: [{ type: "text" as const, text: `Error: ${remedy.description}` }],
+              isError: true,
+              _meta: {
+                "mcp/www_authenticate": [
+                  buildSignInChallenge(remedy.error, remedy.description),
+                ],
+              },
+            };
+          }
           return {
             content: [
               { type: "text" as const, text: `Error: ${(err as Error).message}` },
@@ -372,6 +398,8 @@ export function registerTools(
       }
     );
   }
+
+  if (mixedAuth) withSecuritySchemes(server, securitySchemes);
 
   const message =
     `[surf-mcp] Registered ${groups.length} tools: ${groups.map((g) => g.toolName).join(", ")}`;
@@ -384,4 +412,25 @@ export function registerTools(
   } else {
     console.error(message);
   }
+}
+
+/**
+ * Copies each tool's _meta.securitySchemes to the top-level `securitySchemes`
+ * field of tools/list, where ChatGPT documents it. McpServer builds tool
+ * descriptors from a fixed set of fields, so this wraps its tools/list handler.
+ */
+function withSecuritySchemes(server: McpServer, securitySchemes: unknown[]): void {
+  const handlers = (server.server as unknown as {
+    _requestHandlers?: Map<string, (...args: unknown[]) => unknown>;
+  })._requestHandlers;
+  const listTools = handlers?.get("tools/list");
+  if (!handlers || !listTools) return;
+
+  handlers.set("tools/list", async (...args: unknown[]) => {
+    const result = (await listTools(...args)) as { tools: Record<string, unknown>[] };
+    return {
+      ...result,
+      tools: result.tools.map((tool) => ({ ...tool, securitySchemes })),
+    };
+  });
 }

@@ -1,8 +1,22 @@
 {
   "mcpServers": {
     "surf": {
-      "type": "http",
-      "url": "https://mcp.asksurf.ai/mcp/chatgpt"
+      "url": "https://mcp.asksurf.ai/mcp/chatgpt",
+      "extensions": {
+        "com.openai": {
+          "auth": {
+            "type": "mixed",
+            "client": {
+              "mode": "dcr"
+            },
+            "baseScopes": [
+              "data:read",
+              "openid",
+              "email"
+            ]
+          }
+        }
+      }
     }
   }
 }

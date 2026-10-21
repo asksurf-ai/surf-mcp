@@ -44,6 +44,32 @@ function authRequired(): boolean {
 export function buildAuthChallenge(incoming?: string): string | null {
   if (!authRequired()) return null;
   if (incoming?.trim()) return null;
+  return `Bearer resource_metadata="${resourceMetadataUrl()}"`;
+}
+
+function resourceMetadataUrl(): string {
   const resource = process.env.SURF_MCP_RESOURCE_URL ?? "https://mcp.asksurf.ai";
-  return `Bearer resource_metadata="${resource}/.well-known/oauth-protected-resource"`;
+  return `${resource}/.well-known/oauth-protected-resource`;
+}
+
+/**
+ * Whether this deployment advertises an OAuth authorization server, i.e.
+ * whether /.well-known/oauth-protected-resource is live (see wellknown.ts).
+ */
+export function oauthDiscoverable(): boolean {
+  return Boolean(process.env.SURF_OAUTH_AUTHORIZATION_SERVER?.trim());
+}
+
+export type SignInError = "insufficient_scope" | "invalid_token";
+
+/**
+ * The WWW-Authenticate value a tool result carries in
+ * _meta["mcp/www_authenticate"] to make ChatGPT open its account-linking UI
+ * for that tool. ChatGPT requires both `error` and `error_description`.
+ */
+export function buildSignInChallenge(error: SignInError, description: string): string {
+  return (
+    `Bearer resource_metadata="${resourceMetadataUrl()}", ` +
+    `error="${error}", error_description="${description}"`
+  );
 }
