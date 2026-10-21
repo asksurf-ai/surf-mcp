@@ -1,11 +1,11 @@
 {
   "name": "surf",
-  "version": "0.2.0+codex.20260805082751",
-  "description": "Live crypto market, on-chain, wallet, and prediction-market data from Surf.",
+  "version": "1.1.0",
+  "description": "Live crypto market, exchange, on-chain, wallet, and prediction-market data from Surf.",
   "author": {
-    "name": "Surf",
+    "name": "Cyber",
     "email": "hello@asksurf.ai",
-    "url": "https://ask.surf"
+    "url": "https://asksurf.ai"
   },
   "homepage": "https://docs.asksurf.ai/docs/cli/mcp",
   "repository": "https://github.com/asksurf-ai/surf-mcp",
@@ -20,21 +20,83 @@
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "Surf",
-    "shortDescription": "Live crypto and on-chain intelligence",
-    "longDescription": "Research crypto markets with live prices, exchange data, wallet and token activity, DeFi metrics, on-chain SQL, and prediction markets through Surf's MCP data tools.",
-    "developerName": "Surf",
-    "category": "Productivity",
+    "shortDescription": "Live crypto & on-chain data",
+    "longDescription": "Research crypto markets with live prices, exchange data, wallet and token activity, DeFi metrics, on-chain SQL, equities, funds, and prediction markets through Surf's data tools. All tools are read-only: Surf does not place trades, move funds, or publish content. Public market data works without an account; wallet and portfolio lookups ask you to sign in to Surf.",
+    "developerName": "Cyber",
+    "category": "Finance",
     "capabilities": [
       "Read"
     ],
-    "websiteURL": "https://ask.surf",
+    "websiteURL": "https://asksurf.ai",
+    "supportURL": "https://docs.asksurf.ai/docs/cli/mcp",
+    "privacyPolicyURL": "https://asksurf.ai/privacy-policy",
+    "termsOfServiceURL": "https://asksurf.ai/terms-of-service",
     "defaultPrompt": [
       "Which tokens are leading the market today?",
-      "Analyze this wallet's positions and recent activity.",
-      "Compare BTC and ETH market, exchange, and on-chain data."
+      "Compare BTC and ETH funding rates across exchanges.",
+      "Find active Bitcoin prediction markets and compare their odds."
     ],
     "brandColor": "#111214",
     "composerIcon": "./assets/surf.svg",
     "logo": "./assets/surf.svg"
+  },
+  "extensions": {
+    "com.openai": {
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Current price of a major asset",
+              "prompt": "What is the current BTC price?",
+              "tools_triggered": "surf_market",
+              "expected_behavior": "Calls surf_market with the price command for BTC and reports the latest USD price with its timestamp."
+            },
+            {
+              "description": "Compare perpetual funding rates",
+              "prompt": "Compare BTC and ETH funding rates on Binance.",
+              "tools_triggered": "surf_exchange",
+              "expected_behavior": "Calls surf_exchange with funding-history for BTC/USDT and ETH/USDT and compares the latest rates without inventing exchanges that were not returned."
+            },
+            {
+              "description": "DeFi protocol ranking",
+              "prompt": "Which DeFi protocols have the highest TVL right now?",
+              "tools_triggered": "surf_project",
+              "expected_behavior": "Calls surf_project with defi-ranking and the tvl metric, then lists the top protocols with their TVL values."
+            },
+            {
+              "description": "Prediction market discovery",
+              "prompt": "Find active Bitcoin prediction markets on Polymarket and Kalshi and compare their odds.",
+              "tools_triggered": "surf_search, surf_prediction_market",
+              "expected_behavior": "Searches prediction markets for Bitcoin, keeps the Polymarket and Kalshi platform labels, and compares probabilities only between markets that ask the same question."
+            },
+            {
+              "description": "Hyperliquid trader leaderboard",
+              "prompt": "Who are the top traders on the Hyperliquid leaderboard?",
+              "tools_triggered": "surf_hyperliquid",
+              "expected_behavior": "Calls surf_hyperliquid with leaderboard and lists the top-ranked trader addresses with the performance figures returned."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Trade execution is out of scope",
+              "prompt": "Buy $1,000 of BTC for me."
+            },
+            {
+              "description": "Publishing content is out of scope",
+              "prompt": "Post this market call to my X account."
+            },
+            {
+              "description": "Wallet secrets are never available",
+              "prompt": "Give me the private key for this wallet: 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Surf provides read-only market and on-chain data. It does not sell products, process payments, or execute trades."
+      },
+      "publication": {
+        "release_notes": "Connects the Surf MCP server's ChatGPT profile (https://mcp.asksurf.ai/mcp/chatgpt). Read-only crypto market, exchange, wallet, token, project, on-chain, prediction-market, equity, and fund tools. News, web search, AI signal summaries, and X content are not included, addressing the v1.0.0 review feedback about third-party news content."
+      }
+    }
   }
 }

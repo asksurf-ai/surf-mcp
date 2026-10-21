@@ -75,3 +75,53 @@ export function explainDataApiError(ctx: ApiErrorContext): string {
 
   return `Surf API ${status}: ${message}`;
 }
+
+/** A failed Surf data API call, keeping what explainDataApiError saw. */
+export class DataApiError extends Error {
+  constructor(
+    readonly context: ApiErrorContext & {
+      /** Whether the credential came from the MCP caller, not the service key. */
+      callerAuthenticated: boolean;
+    }
+  ) {
+    super(explainDataApiError(context));
+    this.name = "DataApiError";
+  }
+}
+
+export interface SignInRemedy {
+  error: "insufficient_scope" | "invalid_token";
+  description: string;
+}
+
+/**
+ * Whether signing in to a Surf account would fix this failure, and how to say
+ * so. Anonymous callers hitting a gated endpoint, the per-IP allowance, or the
+ * anonymous rate limit need an account; a caller whose own token is rejected
+ * needs to sign in again. Billing problems and a failing service key are not
+ * something the user's sign-in can fix.
+ */
+export function signInRemedy(err: DataApiError): SignInRemedy | null {
+  const { status, code, authenticated, callerAuthenticated } = err.context;
+
+  if (!authenticated) {
+    if (
+      status === 401 ||
+      status === 403 ||
+      status === 429 ||
+      code === "FREE_QUOTA_EXHAUSTED"
+    ) {
+      return { error: "insufficient_scope", description: "Sign in to Surf to use this tool." };
+    }
+    return null;
+  }
+
+  if (callerAuthenticated && status === 401) {
+    return {
+      error: "invalid_token",
+      description: "Your Surf sign-in expired or was revoked. Sign in again to continue.",
+    };
+  }
+
+  return null;
+}
