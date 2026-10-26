@@ -35,6 +35,8 @@ Build the upload ZIP from `plugins/surf`:
 
 The package declares the `/mcp/chatgpt` server in `plugins/surf/.mcp.json` with mixed authentication (public plus OAuth via dynamic client registration, scopes `data:read openid email`), and carries the listing, the review test cases, and the release notes in `plugins/surf/.codex-plugin/plugin.json` under `extensions.com.openai`, so they are imported with the ZIP. Bump `version` before each upload.
 
+The manifest `name` is not the display name: once the portal has created the plugin, every upload must carry the plugin ID the portal assigned (`app-6a72f6122b408191973de9d1ed4fbf19`). Uploading a ZIP whose `name` differs fails with "Change name from ... to app-..., then upload the ZIP again". The user-facing name comes from `interface.displayName`.
+
 Open the [OpenAI plugin submission portal](https://platform.openai.com/plugins), select **Upload new or existing plugin**, and upload the ZIP. Then open **MCPs**, connect the server, and complete domain verification and the tool scan. The demo video URL and the reviewer credentials are not in the package: enter them in **Review information → Review details**.
 
 Required before submission:
