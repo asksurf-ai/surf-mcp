@@ -88,4 +88,13 @@ describe("buildAuthChallenge", () => {
     process.env.SURF_MCP_REQUIRE_AUTH = "1";
     expect(buildAuthChallenge("Bearer sk-surf-user")).toBeNull();
   });
+
+  test("force challenges a profile without the global auth switch", () => {
+    delete process.env.SURF_MCP_REQUIRE_AUTH;
+    process.env.SURF_MCP_RESOURCE_URL = "https://mcp.example.com";
+    expect(buildAuthChallenge(undefined, true)).toBe(
+      'Bearer resource_metadata="https://mcp.example.com/.well-known/oauth-protected-resource"'
+    );
+    expect(buildAuthChallenge("Bearer sk-surf-user", true)).toBeNull();
+  });
 });

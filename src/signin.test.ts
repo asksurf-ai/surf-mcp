@@ -7,10 +7,9 @@ import type { ProfileName } from "./profiles.js";
 import { createSurfServer } from "./server.js";
 import type { OpenAPISpec } from "./spec.js";
 
-// ChatGPT's mixed (public + OAuth) auth: tools advertise both noauth and
-// oauth2 security schemes, and a call that needs a signed-in account returns
-// an error carrying _meta["mcp/www_authenticate"], which is what makes
-// ChatGPT show its account-linking UI.
+// ChatGPT's endpoint is OAuth-only: every credential-less request is
+// challenged, tools advertise only oauth2, and a rejected token returns an
+// error carrying _meta["mcp/www_authenticate"] so ChatGPT reopens linking.
 
 const ORIGINAL_ENV = { ...process.env };
 const ORIGINAL_FETCH = globalThis.fetch;
@@ -24,10 +23,7 @@ const SPEC: OpenAPISpec = {
   },
 };
 
-const SCHEMES = [
-  { type: "noauth" },
-  { type: "oauth2", scopes: ["data:read", "openid", "email"] },
-];
+const SCHEMES = [{ type: "oauth2", scopes: ["data:read", "openid", "email"] }];
 
 beforeEach(() => {
   process.env.SURF_OAUTH_AUTHORIZATION_SERVER = "https://api.example.com/oauth";
@@ -87,7 +83,7 @@ function text(result: Awaited<ReturnType<typeof callPrice>>): string {
 }
 
 describe("chatgpt profile tool descriptors", () => {
-  test("advertise noauth and oauth2 security schemes", async () => {
+  test("advertise oauth2 only", async () => {
     const tool = (await rawTools("chatgpt")).find((t) => t.name === "surf_market_price")!;
     expect(tool.securitySchemes).toEqual(SCHEMES);
     expect(tool._meta?.securitySchemes).toEqual(SCHEMES);
