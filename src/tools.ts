@@ -323,19 +323,55 @@ export async function callDataApi(
   return result;
 }
 
+const INTERNAL_TOP_LEVEL_FIELDS = new Set(["$schema", "project_id"]);
+const INTERNAL_META_FIELDS = new Set(["credits_used", "cached"]);
+
+/**
+ * Keeps public data and pagination/empty-state metadata, while dropping
+ * implementation details that are not useful to the model or user. The
+ * OpenAI plugin guidelines explicitly reject telemetry and internal IDs in
+ * tool responses.
+ */
+export function minimizeToolResult(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(minimizeToolResult);
+  if (value === null || typeof value !== "object") return value;
+
+  const source = value as Record<string, unknown>;
+  const result: Record<string, unknown> = {};
+
+  for (const [key, child] of Object.entries(source)) {
+    if (INTERNAL_TOP_LEVEL_FIELDS.has(key)) continue;
+    if (key !== "meta" || child === null || typeof child !== "object" || Array.isArray(child)) {
+      result[key] = minimizeToolResult(child);
+      continue;
+    }
+
+    const meta = Object.fromEntries(
+      Object.entries(child as Record<string, unknown>).filter(
+        ([metaKey]) => !INTERNAL_META_FIELDS.has(metaKey)
+      )
+    );
+    if (Object.keys(meta).length > 0) result.meta = meta;
+  }
+
+  return result;
+}
+
 /** Calls one operation and renders the result or failure as a tool result. */
 async function runOperation(
   op: OperationInfo,
   inputParams: Record<string, unknown>,
   auth: RequestAuth | undefined,
-  mixedAuth: boolean
+  challengeAuth: boolean,
+  minimalResponses: boolean
 ) {
   try {
     const { path, remainingParams } = op.hasPathParams
       ? resolvePath(op.path, inputParams)
       : { path: op.path, remainingParams: inputParams };
 
-    const result = await callDataApi(op.method, path, remainingParams, auth);
+    const rawResult = await callDataApi(op.method, path, remainingParams, auth);
+    const result = minimalResponses ? minimizeToolResult(rawResult) : rawResult;
 
     return {
       structuredContent:
@@ -345,7 +381,7 @@ async function runOperation(
       content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
     };
   } catch (err) {
-    const remedy = mixedAuth && err instanceof DataApiError ? signInRemedy(err) : null;
+    const remedy = challengeAuth && err instanceof DataApiError ? signInRemedy(err) : null;
     if (remedy) {
       return {
         content: [{ type: "text" as const, text: `Error: ${remedy.description}` }],
@@ -392,8 +428,23 @@ function paramSchema(param: ParamInfo): z.ZodTypeAny {
 
 const MAX_OPERATION_DESCRIPTION = 1500;
 
+const OPERATION_GUIDANCE: Readonly<Record<string, string>> = {
+  surf_market_price:
+    "For the current ticker price, use surf_exchange_price. Use this tool only for historical price trends and choose time_range explicitly.",
+  surf_exchange_funding_history:
+    "For the latest funding-rate comparison, set limit to 1 or another small value and pass the exchange explicitly.",
+  surf_project_defi_ranking:
+    "For a top-N request, set limit to N. The metric determines how the returned rows are ranked.",
+  surf_search_prediction_market:
+    "When the user asks about both Polymarket and Kalshi, make one call per platform. Do not compare markets that ask different questions.",
+  surf_hyperliquid_leaderboard:
+    "For a top-N request, set limit to N. Pass sort_by and time_range when the user specifies them.",
+};
+
 function buildOperationDescription(group: TagGroup, op: OperationInfo): string {
   const lines = [`${op.summary}. Use this when the user needs ${group.name.toLowerCase()} data from Surf.`];
+  const guidance = OPERATION_GUIDANCE[operationToolName(group, op)];
+  if (guidance) lines.push(guidance);
   const body = op.description.trim();
   if (body && body !== op.summary) {
     lines.push(
@@ -414,6 +465,8 @@ function operationToolName(group: TagGroup, op: OperationInfo): string {
   return `${group.toolName}_${op.command.replace(/-/g, "_")}`;
 }
 
+const DYNAMIC_OUTPUT_SCHEMA = z.looseObject({});
+
 export function registerTools(
   server: McpServer,
   spec: OpenAPISpec,
@@ -421,14 +474,17 @@ export function registerTools(
   profile?: Profile
 ): void {
   const groups = applyProfile(parseSpec(spec), profile);
-  const mixedAuth = Boolean(profile?.mixedAuth) && oauthDiscoverable();
-  const securitySchemes = [
-    { type: "noauth" },
-    { type: "oauth2", scopes: [...SURF_OAUTH_SCOPES] },
-  ];
+  const challengeAuth =
+    Boolean(profile?.mixedAuth || profile?.oauthOnly) && oauthDiscoverable();
+  const securitySchemes = profile?.oauthOnly
+    ? [{ type: "oauth2", scopes: [...SURF_OAUTH_SCOPES] }]
+    : [
+        { type: "noauth" },
+        { type: "oauth2", scopes: [...SURF_OAUTH_SCOPES] },
+      ];
   // ChatGPT reads the top-level field (added in withSecuritySchemes, since
   // the SDK drops it) and this _meta mirror.
-  const authMeta = mixedAuth ? { _meta: { securitySchemes } } : {};
+  const authMeta = challengeAuth ? { _meta: { securitySchemes } } : {};
   const registered: string[] = [];
 
   if (profile?.perOperationTools) {
@@ -441,14 +497,16 @@ export function registerTools(
             title: op.summary,
             description: buildOperationDescription(group, op),
             inputSchema: Object.fromEntries(op.params.map((p) => [p.name, paramSchema(p)])),
+            outputSchema: DYNAMIC_OUTPUT_SCHEMA,
             annotations: {
               readOnlyHint: op.command !== "sql-job-create",
-              openWorldHint: false,
+              openWorldHint: profile?.openWorldHint ?? false,
               destructiveHint: false,
             },
             ...authMeta,
           },
-          async (args: Record<string, unknown>) => runOperation(op, args ?? {}, auth, mixedAuth)
+          async (args: Record<string, unknown>) =>
+            runOperation(op, args ?? {}, auth, challengeAuth, Boolean(profile?.minimalResponses))
         );
         registered.push(name);
       }
@@ -486,14 +544,14 @@ export function registerTools(
               isError: true,
             };
           }
-          return runOperation(op, params ?? {}, auth, mixedAuth);
+          return runOperation(op, params ?? {}, auth, challengeAuth, false);
         }
       );
       registered.push(group.toolName);
     }
   }
 
-  if (mixedAuth) withSecuritySchemes(server, securitySchemes);
+  if (challengeAuth) withSecuritySchemes(server, securitySchemes);
 
   const message = `[surf-mcp] Registered ${registered.length} tools: ${registered.join(", ")}`;
 

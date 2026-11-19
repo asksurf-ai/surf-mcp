@@ -91,7 +91,7 @@ const SPEC: OpenAPISpec = {
 
 type Captured = { url: string; method: string; body?: string };
 
-function captureFetch(): Captured[] {
+function captureFetch(body: unknown = { data: [] }): Captured[] {
   const calls: Captured[] = [];
   globalThis.fetch = (async (url: unknown, init?: RequestInit) => {
     calls.push({
@@ -99,7 +99,7 @@ function captureFetch(): Captured[] {
       method: init?.method ?? "GET",
       body: init?.body as string | undefined,
     });
-    return new Response(JSON.stringify({ data: [] }), {
+    return new Response(JSON.stringify(body), {
       status: 200,
       headers: { "content-type": "application/json" },
     });
@@ -145,18 +145,27 @@ describe("chatgpt profile: one tool per operation", () => {
     const price = tools.find((t) => t.name === "surf_market_price")!;
     expect(price.title).toBe("Token Price History");
     expect(price.description).toContain("Returns historical price data points");
+    expect(price.description).toContain("use surf_exchange_price");
     const fund = tools.find((t) => t.name === "surf_fund_detail")!;
     expect(fund.description).toContain("by fund UUID");
   });
 
-  test("every tool is annotated read-only and closed-world", async () => {
+  test("every tool is annotated read-only and open-world", async () => {
     const { tools } = await (await connect("chatgpt")).listTools();
     for (const tool of tools) {
       expect(tool.annotations).toEqual({
         readOnlyHint: true,
-        openWorldHint: false,
+        openWorldHint: true,
         destructiveHint: false,
       });
+    }
+  });
+
+  test("every tool advertises an output schema", async () => {
+    const { tools } = await (await connect("chatgpt")).listTools();
+    for (const tool of tools) {
+      expect(tool.outputSchema).toBeDefined();
+      expect(tool.outputSchema?.type).toBe("object");
     }
   });
 
@@ -194,6 +203,30 @@ describe("chatgpt profile: one tool per operation", () => {
 
     expect(calls[0]!.method).toBe("POST");
     expect(JSON.parse(calls[0]!.body!)).toEqual({ sql: "SELECT 1" });
+  });
+
+  test("drops internal response metadata for ChatGPT", async () => {
+    captureFetch({
+      $schema: "https://api.example.com/schema.json",
+      project_id: "internal-project-id",
+      data: [{ symbol: "BTC", value: 123 }],
+      meta: { credits_used: 1, cached: false, limit: 20, offset: 0 },
+    });
+    const client = await connect("chatgpt");
+
+    const result = await client.callTool({
+      name: "surf_market_price",
+      arguments: { symbol: "BTC" },
+    });
+
+    expect(result.structuredContent).toEqual({
+      data: [{ symbol: "BTC", value: 123 }],
+      meta: { limit: 20, offset: 0 },
+    });
+    expect(JSON.parse((result.content as { text: string }[])[0]!.text)).toEqual({
+      data: [{ symbol: "BTC", value: 123 }],
+      meta: { limit: 20, offset: 0 },
+    });
   });
 
   test("a missing required argument is rejected before any API call", async () => {

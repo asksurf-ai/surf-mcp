@@ -41,8 +41,8 @@ function authRequired(): boolean {
  * - SURF_OAUTH_AUTHORIZATION_SERVER only: OAuth discoverable, not enforced
  * - both set: credential-less requests are challenged into the OAuth flow
  */
-export function buildAuthChallenge(incoming?: string): string | null {
-  if (!authRequired()) return null;
+export function buildAuthChallenge(incoming?: string, force = false): string | null {
+  if (!force && !authRequired()) return null;
   if (incoming?.trim()) return null;
   return `Bearer resource_metadata="${resourceMetadataUrl()}"`;
 }

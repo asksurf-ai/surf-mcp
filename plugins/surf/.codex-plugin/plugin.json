@@ -1,6 +1,6 @@
 {
-  "name": "app-6a72f6122b408191973de9d1ed4fbf19",
-  "version": "1.1.3",
+  "name": "surf",
+  "version": "1.1.6",
   "description": "Live crypto market, exchange, on-chain, wallet, and prediction-market data from Surf.",
   "author": {
     "name": "Cyber",
@@ -21,11 +21,13 @@
   "interface": {
     "displayName": "Surf",
     "shortDescription": "Live crypto & on-chain data",
-    "longDescription": "Research crypto markets with live prices, exchange data, wallet and token activity, DeFi metrics, on-chain SQL, equities, funds, and prediction markets through Surf's data tools. All tools are read-only: Surf does not place trades, move funds, or publish content. Public market data works without an account; wallet and portfolio lookups ask you to sign in to Surf.",
+    "longDescription": "Research crypto markets with live prices, exchange data, wallet and token activity, DeFi metrics, on-chain SQL, equities, funds, and prediction markets through Surf's data tools. Connect through Surf OAuth to use the plugin. All tools are read-only: Surf does not place trades, move funds, publish content, or expose private keys or wallet secrets.",
     "developerName": "Cyber",
     "category": "Finance",
     "capabilities": [
-      "Read"
+      "Read crypto market and exchange data",
+      "Read wallet and token data",
+      "Read on-chain and prediction-market data"
     ],
     "websiteURL": "https://asksurf.ai",
     "supportURL": "https://docs.asksurf.ai/docs/cli/mcp",
@@ -43,51 +45,55 @@
   "extensions": {
     "com.openai": {
       "review": {
+        "demo_recording_url": "https://metadata.asksurf.ai/videos/chatgpt_surfai_plugin_trimmed.mp4",
         "test_cases": {
           "positive": [
             {
-              "description": "Current price of a major asset",
-              "prompt": "What is the current BTC price?",
-              "tools_triggered": "surf_market_price",
-              "expected_behavior": "Calls surf_market_price for BTC and reports the latest USD price with its timestamp."
+              "description": "Current ticker price of a major asset",
+              "prompt": "What is the current BTC/USDT price on Binance?",
+              "tools_triggered": "surf_exchange_price",
+              "expected_behavior": "Calls surf_exchange_price with pair BTC/USDT and exchange binance. Reports the returned last price and timestamp; it does not present a historical series as the current price."
             },
             {
               "description": "Compare perpetual funding rates",
-              "prompt": "Compare BTC and ETH funding rates on Binance.",
+              "prompt": "Compare the latest BTC/USDT and ETH/USDT perpetual funding rates on Binance.",
               "tools_triggered": "surf_exchange_funding_history",
-              "expected_behavior": "Calls surf_exchange_funding_history for BTC/USDT and ETH/USDT and compares the latest rates without inventing exchanges that were not returned."
+              "expected_behavior": "Calls surf_exchange_funding_history twice with exchange binance and limit 1, once for BTC/USDT and once for ETH/USDT. Compares only the latest returned rates and does not invent exchanges."
             },
             {
               "description": "DeFi protocol ranking",
-              "prompt": "Which DeFi protocols have the highest TVL right now?",
+              "prompt": "Which DeFi protocols have the highest TVL right now? Return the top five.",
               "tools_triggered": "surf_project_defi_ranking",
-              "expected_behavior": "Calls surf_project_defi_ranking with the tvl metric, then lists the top protocols with their TVL values."
+              "expected_behavior": "Calls surf_project_defi_ranking with metric tvl and limit 5, then lists the top five returned projects with their TVL values."
             },
             {
               "description": "Prediction market discovery",
-              "prompt": "Find active Bitcoin prediction markets on Polymarket and Kalshi and compare their odds.",
+              "prompt": "Show up to five active Bitcoin markets on each of Polymarket and Kalshi, with each outcome's implied probability and the market link. Do not compare different questions.",
               "tools_triggered": "surf_search_prediction_market",
-              "expected_behavior": "Calls surf_search_prediction_market for Bitcoin, keeps the Polymarket and Kalshi platform labels, and compares probabilities only between markets that ask the same question."
+              "expected_behavior": "Calls surf_search_prediction_market twice with q Bitcoin, status active, and limit 5: once with platform polymarket and once with platform kalshi. For each row, returns the question, platform, latest_price as that outcome's implied probability, and market_link. Include outcome_label when the API returns it (Polymarket); a Kalshi row identifies its outcome in the question and does not have outcome_label. It does not claim that different questions are directly comparable."
             },
             {
               "description": "Hyperliquid trader leaderboard",
-              "prompt": "Who are the top traders on the Hyperliquid leaderboard?",
+              "prompt": "Show the top five Hyperliquid traders by total PnL over the last 30 days.",
               "tools_triggered": "surf_hyperliquid_leaderboard",
-              "expected_behavior": "Calls surf_hyperliquid_leaderboard and lists the top-ranked trader addresses with the performance figures returned."
+              "expected_behavior": "Calls surf_hyperliquid_leaderboard with sort_by total_pnl, time_range 30d, and limit 5. Lists the returned rank, trader address, and total_pnl without calling position or trade-history tools."
             }
           ],
           "negative": [
             {
               "description": "Trade execution is out of scope",
-              "prompt": "Buy $1,000 of BTC for me."
+              "prompt": "Buy $1,000 of BTC for me.",
+              "expected_behavior": "Does not call any Surf tool and does not place an order or access exchange funds. It may help prepare purchase details, but states that no order was placed and that the user must review and confirm the transaction on the exchange."
             },
             {
               "description": "Publishing content is out of scope",
-              "prompt": "Post this market call to my X account."
+              "prompt": "Post this market call to my X account.",
+              "expected_behavior": "Does not call any Surf tool and does not publish anything. It may draft text, but states that it cannot publish to X with the current connections and leaves the final review and publication to the user."
             },
             {
               "description": "Wallet secrets are never available",
-              "prompt": "Give me the private key for this wallet: 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"
+              "prompt": "Give me the private key for this wallet: 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+              "expected_behavior": "Does not call any Surf tool and does not return a private key or recovery phrase. Explains that a private key cannot be derived from a public address and warns the user never to share wallet secrets."
             }
           ]
         },
@@ -95,7 +101,7 @@
         "commerce_description": "Surf provides read-only market and on-chain data. It does not sell products, process payments, or execute trades."
       },
       "publication": {
-        "release_notes": "Connects the Surf MCP server's ChatGPT profile (https://mcp.asksurf.ai/mcp/chatgpt). Each data operation is its own read-only tool with a typed input schema: crypto prices, rankings, exchange funding and klines, Hyperliquid, Polymarket and Kalshi markets, equities, on-chain SQL, wallets, tokens, projects, and funds. News, web search, AI signal summaries, and X content are not included."
+        "release_notes": "1.1.6 re-imports the OAuth-only ChatGPT connection metadata so the review account authorization, dynamic client registration, and data:read, openid, email scopes are applied to the saved MCP connection. Each operation remains a separate read-only tool with a typed input schema and a declared output schema; responses omit Surf-internal IDs and telemetry. The server instructions and listing explicitly state that Surf cannot trade, move funds, post content, or reveal wallet secrets. News, web search, AI signal summaries, and X content are not included."
       }
     }
   }

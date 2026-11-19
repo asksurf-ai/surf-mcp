@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { buildAuthChallenge } from "./auth.js";
-import type { ProfileName } from "./profiles.js";
+import { buildAuthChallenge, oauthDiscoverable } from "./auth.js";
+import { PROFILES, type ProfileName } from "./profiles.js";
 import { createSurfServer } from "./server.js";
 import { loadSpec } from "./spec.js";
 
@@ -19,7 +19,8 @@ export async function handleMcpHttpRequest(
 ): Promise<void> {
   // Auth-required deployments challenge credential-less requests so MCP
   // clients launch the OAuth login on the user's device (see buildAuthChallenge).
-  const challenge = buildAuthChallenge(req.headers.authorization);
+  const profileRequiresAuth = Boolean(PROFILES[profile].oauthOnly) && oauthDiscoverable();
+  const challenge = buildAuthChallenge(req.headers.authorization, profileRequiresAuth);
   if (challenge) {
     res.writeHead(401, {
       "content-type": "application/json",
@@ -31,7 +32,9 @@ export async function handleMcpHttpRequest(
         error: {
           code: -32001,
           message:
-            "Authentication required: complete the OAuth flow advertised in WWW-Authenticate, or supply a Surf API key as a Bearer token.",
+            profileRequiresAuth
+              ? "Authentication required: complete the OAuth flow advertised in WWW-Authenticate."
+              : "Authentication required: complete the OAuth flow advertised in WWW-Authenticate, or supply a Surf API key as a Bearer token.",
         },
         id: null,
       })

@@ -53,7 +53,7 @@ claude plugin marketplace add asksurf-ai/surf-mcp
 claude plugin install surf@surf
 ```
 
-The plugin connects to the hosted anonymous beta. Usage is limited by Surf's anonymous allowance; production deployments should use a dedicated, rate-limited service key or OAuth 2.1.
+The plugin connects to the hosted MCP endpoint. Anonymous usage is limited by Surf's per-IP allowance; ChatGPT review should link the dedicated review account through Surf OAuth so calls use that account's quota.
 
 ## ChatGPT and Codex plugin
 
@@ -63,7 +63,7 @@ The repository contains a Codex/ChatGPT plugin package under [`plugins/surf`](pl
 codex plugin marketplace add asksurf-ai/surf-mcp
 ```
 
-Register `https://mcp.asksurf.ai/mcp/chatgpt` in [ChatGPT Plugins](https://chatgpt.com/plugins). See [`docs/chatgpt-plugin-submission.md`](docs/chatgpt-plugin-submission.md) for the submission checklist.
+Register `https://mcp.asksurf.ai/mcp/chatgpt` in [ChatGPT Plugins](https://chatgpt.com/plugins), then authorize the dedicated review account through OAuth during connection. This endpoint is OAuth-only; `/mcp` remains the anonymous/API-key endpoint. OpenAI review requires reviewer credentials that work without email codes, SMS codes, magic links, or additional MFA. Keep the account address and private sign-in details in the dashboard's **Review details**, never in this repository. See [`docs/chatgpt-plugin-submission.md`](docs/chatgpt-plugin-submission.md) for the submission checklist and live preflight.
 
 ## Streamable HTTP deployment
 

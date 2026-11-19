@@ -18,17 +18,32 @@ export interface Profile {
   allowedCommands?: Readonly<Record<string, readonly string[]>>;
   instructions: string;
   /**
-   * ChatGPT's mixed auth: tools run anonymously, and a call that needs a
+   * Public-plus-OAuth auth: tools run anonymously, and a call that needs a
    * signed-in account asks the host to link one (see signInRemedy). Only
    * takes effect while the deployment advertises OAuth.
    */
   mixedAuth?: boolean;
+  /**
+   * OAuth-only auth: the hosted endpoint challenges every credential-less
+   * request and tools advertise only the oauth2 scheme. The ChatGPT endpoint
+   * uses this so review calls always bill the linked account instead of the
+   * small anonymous IP allowance.
+   */
+  oauthOnly?: boolean;
   /**
    * Register each allowed operation as its own tool (surf_market_price)
    * instead of one tool per tag with a command enum. OpenAI plugin review
    * rejects tools that dispatch to operations not individually exposed.
    */
   perOperationTools?: boolean;
+  /**
+   * Strip Surf-internal response metadata ($schema, project_id, credit/cache
+   * counters) before returning a tool result. OpenAI review requires tool
+   * responses to contain only data relevant to the user's request.
+   */
+  minimalResponses?: boolean;
+  /** Whether tools access public, open-ended external data. */
+  openWorldHint?: boolean;
 }
 
 export const PROFILES: Record<ProfileName, Profile> = {
@@ -38,9 +53,11 @@ export const PROFILES: Record<ProfileName, Profile> = {
   },
   chatgpt: {
     instructions:
-      "Use Surf for crypto market, exchange, wallet, token, project, on-chain, prediction-market, equity, and fund data. Resolve token symbols to contract addresses before calling address-based token tools.",
-    mixedAuth: true,
+      "Use Surf for crypto market, exchange, wallet, token, project, on-chain, prediction-market, equity, and fund data. All Surf tools are read-only: they cannot buy or sell assets, move funds, post content, or reveal private keys, seed phrases, or wallet secrets. Refuse those requests without calling a Surf tool. Resolve token symbols to contract addresses before calling address-based token tools.",
+    oauthOnly: true,
     perOperationTools: true,
+    minimalResponses: true,
+    openWorldHint: true,
     // A curated core set: each command becomes its own tool, and every tool
     // is listed, annotated, and justified in the OpenAI review. Read-only
     // throughout (no sql-job-create, which enqueues server-side work).

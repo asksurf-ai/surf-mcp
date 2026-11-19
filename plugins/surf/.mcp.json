@@ -5,7 +5,10 @@
       "extensions": {
         "com.openai": {
           "auth": {
-            "type": "mixed",
+            "type": "oauth",
+            "authorizationUrl": "https://api.asksurf.ai/muninn/v2/oauth/authorize",
+            "tokenUrl": "https://api.asksurf.ai/muninn/v2/oauth/token",
+            "registrationUrl": "https://api.asksurf.ai/muninn/v2/oauth/register",
             "client": {
               "mode": "dcr"
             },
