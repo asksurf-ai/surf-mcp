@@ -5,7 +5,7 @@ on:
     tags: ['v*']
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   test:
@@ -19,12 +19,14 @@ jobs:
 
       - name: Install & build
         run: |
-          bun install
+          bun install --frozen-lockfile
           bun run build
           bun run typecheck
 
   publish:
     needs: test
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -62,9 +64,9 @@ jobs:
 
       - name: Build & publish
         run: |
-          bun install
+          bun install --frozen-lockfile
           bun run build
-          npm publish --access public --tag ${{ steps.version.outputs.npm_tag }}
+          npm publish --access public --tag "${{ steps.version.outputs.npm_tag }}"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
