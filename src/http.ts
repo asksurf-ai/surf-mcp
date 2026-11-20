@@ -42,6 +42,30 @@ export async function handleMcpHttpRequest(
     return;
   }
 
+  // This deployment is stateless: it registers no server-initiated messages, so
+  // there is no stream a client could subscribe to. A GET here used to open a
+  // silent text/event-stream that never emitted and never closed; MCP clients
+  // (including the ChatGPT plugin scanner) wait on it until they time out and
+  // abandon the scan. The spec's answer for "no stream at this endpoint" is 405,
+  // which tells the client to talk to the endpoint with POST only.
+  if (req.method !== "POST") {
+    res.writeHead(405, {
+      allow: "POST",
+      "content-type": "application/json",
+    });
+    res.end(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        error: {
+          code: -32000,
+          message: "Method Not Allowed: this MCP endpoint accepts POST requests only.",
+        },
+        id: null,
+      })
+    );
+    return;
+  }
+
   const spec = await getSpec();
   // Forward the caller's own credentials so usage and billing attach to the
   // caller's Surf account; resolveAuthorization falls back to the service key.
