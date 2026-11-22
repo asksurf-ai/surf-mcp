@@ -188,10 +188,10 @@ bun run typecheck            # Type check
 `@surf-ai/surf-mcp` is published by `.github/workflows/publish.yml` through npm trusted publishing: no npm token exists, and each version carries a provenance statement.
 
 1. Bump `version` in `package.json` in a pull request and merge it to `main`.
-2. Tag that `main` commit `v<version>` (for example `v0.2.0`; `-alpha`, `-beta` and `-rc` versions get the matching npm dist-tag) and push the tag.
-3. A maintainer approves the `npm-publish` environment deployment.
+2. Tag that `main` commit `v<version>` and push the tag. A stable version (for example `v0.2.0`) gets npm's `latest` dist-tag. A prerelease must end in `-alpha`, `-beta` or `-rc`, optionally followed by `.N` (for example `v0.3.0-rc.1`), and gets the matching dist-tag.
+3. A maintainer other than the one who pushed the tag approves the `npm-publish` environment deployment.
 
-The workflow refuses a tag that is not on `main` or does not match `package.json`.
+The workflow refuses a tag that is not on `main`, does not match `package.json`, or has any other prerelease suffix. Before it uploads the tarball, it starts the packed `surf-mcp` bin under Node and checks that it answers an MCP initialize. npm refuses to move `latest` to a version lower than the highest one already published.
 
 ## License
 

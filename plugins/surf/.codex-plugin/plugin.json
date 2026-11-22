@@ -3,7 +3,7 @@
   "version": "1.1.7",
   "description": "Live crypto market, exchange, on-chain, wallet, and prediction-market data from Surf.",
   "author": {
-    "name": "Cyber",
+    "name": "Surf",
     "email": "hello@asksurf.ai",
     "url": "https://asksurf.ai"
   },
@@ -22,7 +22,7 @@
     "displayName": "Surf",
     "shortDescription": "Live crypto & on-chain data",
     "longDescription": "Research crypto markets with live prices, exchange data, wallet and token activity, DeFi metrics, on-chain SQL, equities, funds, and prediction markets through Surf's data tools. Connect through Surf OAuth to use the plugin. All tools are read-only: Surf does not place trades, move funds, publish content, or expose private keys or wallet secrets.",
-    "developerName": "Cyber",
+    "developerName": "Surf",
     "category": "Finance",
     "capabilities": [
       "Read crypto market and exchange data",

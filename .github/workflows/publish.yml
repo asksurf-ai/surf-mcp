@@ -42,8 +42,15 @@ jobs:
         id: meta
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
-            echo "::error::Tag ${GITHUB_REF_NAME} is not v<semver>."
+          # A stable version gets npm's default `latest` dist-tag. A prerelease
+          # must end in -alpha, -beta or -rc, optionally followed by .N, and
+          # gets that dist-tag. Any other version fails here.
+          if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            NPM_TAG=latest
+          elif [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-(alpha|beta|rc)(\.[0-9]+)*$ ]]; then
+            NPM_TAG="${BASH_REMATCH[1]}"
+          else
+            echo "::error::Tag ${GITHUB_REF_NAME} must be v<major>.<minor>.<patch>, optionally followed by -alpha, -beta or -rc and .N (for example v1.2.0-rc.1)."
             exit 1
           fi
           PACKAGE_VERSION="$(jq -r .version package.json)"
@@ -51,13 +58,6 @@ jobs:
             echo "::error::Tag ${GITHUB_REF_NAME} does not match package.json version ${PACKAGE_VERSION}. Bump package.json on main first."
             exit 1
           fi
-          case "$VERSION" in
-            *-alpha*) NPM_TAG=alpha ;;
-            *-beta*) NPM_TAG=beta ;;
-            *-rc*) NPM_TAG=rc ;;
-            *-*) echo "::error::Prerelease ${VERSION} must be -alpha, -beta or -rc."; exit 1 ;;
-            *) NPM_TAG=latest ;;
-          esac
           echo "npm_tag=${NPM_TAG}" >> "$GITHUB_OUTPUT"
           echo "Publishing ${VERSION} with npm dist-tag ${NPM_TAG}"
 
@@ -85,6 +85,24 @@ jobs:
           mkdir -p pack
           npm pack --pack-destination pack
           ls -l pack
+
+      # Start the packed tarball's `surf-mcp` bin under Node and send it an MCP
+      # initialize: catches a missing entry point or a Node import failure that
+      # the Bun source tests cannot. The tarball is unpacked inside the
+      # workspace, so Node resolves its dependencies from the frozen-lockfile
+      # install above; nothing outside the lockfile runs before the upload. A
+      # fresh cached spec keeps it offline.
+      - name: Smoke-test the packed package under Node
+        run: |
+          set -- pack/*.tgz
+          SMOKE="${PWD}/.smoke"
+          mkdir -p "$SMOKE/cache"
+          tar -xzf "$1" -C "$SMOKE"
+          BIN="$(jq -er '.bin["surf-mcp"]' "$SMOKE/package/package.json")"
+          printf '%s' '{"openapi":"3.1.0","info":{"title":"smoke","version":"0"},"paths":{}}' > "$SMOKE/cache/openapi.json"
+          printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"smoke","version":"0"}}}' \
+            | SURF_MCP_CACHE_DIR="$SMOKE/cache" timeout 60 node "$SMOKE/package/$BIN" > "$SMOKE/response.json"
+          jq -e '.result.serverInfo.name == "surf-mcp"' "$SMOKE/response.json"
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -135,7 +153,14 @@ jobs:
             echo "::error::Expected exactly one package tarball."
             exit 1
           fi
-          npm publish "$1" --provenance --access public --tag "$NPM_TAG"
+          # A stable version takes npm's default `latest` dist-tag. Passing
+          # `--tag latest` would skip npm's check that refuses to move
+          # `latest` to a version lower than the highest one published.
+          if [ "$NPM_TAG" = latest ]; then
+            npm publish "$1" --provenance --access public
+          else
+            npm publish "$1" --provenance --access public --tag "$NPM_TAG"
+          fi
 
       - name: Summary
         env:
