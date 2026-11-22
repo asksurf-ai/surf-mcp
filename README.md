@@ -183,6 +183,16 @@ bun run start:http           # Run Streamable HTTP on :3000
 bun run typecheck            # Type check
 ```
 
+### Releasing
+
+`@surf-ai/surf-mcp` is published by `.github/workflows/publish.yml` through npm trusted publishing: no npm token exists, and each version carries a provenance statement.
+
+1. Bump `version` in `package.json` in a pull request and merge it to `main`.
+2. Tag that `main` commit `v<version>` (for example `v0.2.0`; `-alpha`, `-beta` and `-rc` versions get the matching npm dist-tag) and push the tag.
+3. A maintainer approves the `npm-publish` environment deployment.
+
+The workflow refuses a tag that is not on `main` or does not match `package.json`.
+
 ## License
 
 MIT
